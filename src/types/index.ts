@@ -1,0 +1,50 @@
+export interface Business {
+  id: string;
+  name: string;
+  description: string;
+  country: string;
+  city: string;
+  address: string;
+  email: string;
+  phone?: string;
+  bookingPageImage?: string;
+  feeHandling: 'customer' | 'business';
+  accountHolderName: string;
+  bankName: string;
+  accountNumber: string;
+  slug: string;
+}
+
+export interface Appointment {
+  id: string;
+  businessId: string;
+  name: string;
+  description: string;
+  price: number;
+  currency: string;
+  availableDays: number[]; // 0=Sun, 1=Mon, ...
+  startTime: string; // "09:00"
+  endTime: string; // "17:00"
+  duration: number; // minutes
+  maxBookingsPerSlot: number;
+  messageForClients?: string;
+  createdAt: string;
+  paused?: boolean;
+}
+
+export interface Booking {
+  id: string;
+  appointmentId: string;
+  businessSlug: string;
+  clientName: string;
+  clientEmail: string;
+  date: string; // YYYY-MM-DD
+  time: string; // "10:00"
+  status: 'confirmed' | 'cancelled' | 'completed';
+  createdAt: string;
+}
+
+export interface TimeSlot {
+  time: string;
+  available: boolean;
+}
