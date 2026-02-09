@@ -2,12 +2,17 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Plus, LogOut, ArrowRight } from 'lucide-react';
+import { Plus, LogOut, ArrowRight, Copy, Link } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { appointments, bookings } = useData();
+  const { appointments, bookings, business } = useData();
   const { logout } = useAuth();
+  const bookingLink =
+    business?.slug && typeof window !== 'undefined'
+      ? `${window.location.origin}/booking/${business.slug}`
+      : '';
 
   const getAppointmentBookingCount = (id: string) =>
     bookings.filter(b => b.appointmentId === id && b.status === 'confirmed').length;
@@ -15,6 +20,16 @@ const Dashboard = () => {
   const handleLogout = async () => {
     await logout();
     navigate('/');
+  };
+
+  const handleCopyLink = async () => {
+    if (!bookingLink) return;
+    try {
+      await navigator.clipboard.writeText(bookingLink);
+      toast({ title: 'Link copied', description: 'Share your booking link with clients.' });
+    } catch {
+      toast({ title: 'Copy failed', description: 'Please copy the link manually.', variant: 'destructive' });
+    }
   };
 
   return (
@@ -27,6 +42,43 @@ const Dashboard = () => {
         <button onClick={handleLogout} className="p-2 rounded-full hover:bg-accent" aria-label="Logout">
           <LogOut className="h-5 w-5" />
         </button>
+      </div>
+
+      <div className="mb-6 space-y-3">
+        <div className="border rounded-2xl p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Link className="h-4 w-4 text-muted-foreground" />
+              Shareable booking link
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={handleCopyLink}
+              disabled={!bookingLink}
+            >
+              <Copy className="h-4 w-4" />
+              Copy
+            </Button>
+          </div>
+          {bookingLink ? (
+            <p className="mt-2 text-sm text-muted-foreground break-all">{bookingLink}</p>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Set up your business profile to generate a booking link.
+            </p>
+          )}
+          <div className="mt-3">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => navigate(business ? '/business/edit' : '/setup')}
+            >
+              {business ? 'Edit business profile' : 'Complete setup'}
+            </Button>
+          </div>
+        </div>
       </div>
 
       {appointments.length === 0 ? (

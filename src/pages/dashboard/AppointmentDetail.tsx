@@ -11,7 +11,7 @@ import { Pencil, Trash2, Pause, Play } from 'lucide-react';
 const AppointmentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { appointments, bookings, updateAppointment, deleteAppointment, getBookingsForDate, business } = useData();
+  const { appointments, bookings, updateAppointment, deleteAppointment, getBookingsForDate } = useData();
   const appointment = appointments.find(a => a.id === id);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const availabilityRef = useRef<HTMLDivElement>(null);
@@ -19,34 +19,12 @@ const AppointmentDetail = () => {
   const allBookings = bookings.filter(b => b.appointmentId === id && b.status === 'confirmed');
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
   const dayBookings = getBookingsForDate(id!, dateStr);
+  const sortedDayBookings = [...dayBookings].sort((a, b) => a.time.localeCompare(b.time));
 
   const isToday = isSameDay(selectedDate, new Date());
 
   // Check if appointment can be edited/deleted
   const hasFutureBookings = allBookings.some(b => isAfter(parseISO(b.date), new Date()) || isSameDay(parseISO(b.date), new Date()));
-
-  // Generate time slots
-  const generateSlots = () => {
-    if (!appointment) return [];
-    const slots: { time: string; booked: boolean }[] = [];
-    const [startH, startM] = appointment.startTime.split(':').map(Number);
-    const [endH, endM] = appointment.endTime.split(':').map(Number);
-    const startMinutes = startH * 60 + startM;
-    const endMinutes = endH * 60 + endM;
-
-    for (let m = startMinutes; m + appointment.duration <= endMinutes; m += appointment.duration) {
-      const h = Math.floor(m / 60);
-      const min = m % 60;
-      const timeStr = `${h.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-      const isBooked = dayBookings.some(b => b.time === timeStr);
-      slots.push({ time: timeStr, booked: isBooked });
-    }
-    return slots;
-  };
-
-  const slots = generateSlots();
-  const bookedCount = dayBookings.length;
-  const openCount = slots.length - bookedCount;
 
   useEffect(() => {
     // On mobile, scroll to availability card when date is selected
@@ -126,29 +104,18 @@ const AppointmentDetail = () => {
             {isToday ? "Today's Availability" : "Day's Availability"}
           </h3>
 
-          {slots.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No appointment set for {isToday ? 'today' : 'this day'}</p>
+          {sortedDayBookings.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No client for {isToday ? 'today' : 'this day'}</p>
           ) : (
             <>
-              <div className="flex gap-4 mb-4 text-sm">
-                <span>📅 {slots.length} appointments</span>
-                <span>✅ {bookedCount} booked</span>
-                <span>🟢 {openCount} open</span>
-              </div>
               <div className="space-y-2">
-                {slots.map(slot => (
+                {sortedDayBookings.map(booking => (
                   <div
-                    key={slot.time}
-                    className={`flex items-center justify-between p-3 rounded-xl text-sm ${
-                      slot.booked ? 'bg-accent text-muted-foreground' : 'border'
-                    }`}
+                    key={booking.id}
+                    className="flex items-center justify-between p-3 rounded-xl text-sm border"
                   >
-                    <span>{formatTime(slot.time)}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      slot.booked ? 'bg-foreground/10' : 'bg-green-100 text-green-700'
-                    }`}>
-                      {slot.booked ? 'Booked' : 'Open'}
-                    </span>
+                    <span className="font-medium">{booking.clientName}</span>
+                    <span className="text-muted-foreground">{formatTime(booking.time)}</span>
                   </div>
                 ))}
               </div>
