@@ -28,8 +28,10 @@ const Welcome = () => {
 
   return (
     <div className="min-h-screen flex flex-col px-6 py-12 max-w-md mx-auto">
-      <div className="mb-auto">
-        <h2 className="text-lg font-semibold">Booking System</h2>
+      <div className="items-center text-center space-y-1 pt-20">
+        <h2 className="text-5xl font-bold">Moments</h2>
+        <h2>by</h2>
+        <h2 className="text-md font-semibold">AktiveHq</h2>
       </div>
 
       <div className="flex-1 flex flex-col justify-center space-y-8">
