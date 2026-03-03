@@ -33,8 +33,8 @@ const Welcome = () => {
       </div>
 
       <div className="flex-1 flex flex-col justify-center space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold">Welcome to AktiveHq</h1>
+        <div className='flex flex-col justify-center text-center'>
+          <h1 className="text-2xl font-bold">Welcome</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Sign in or create an account to continue
           </p>

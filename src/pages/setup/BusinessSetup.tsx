@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,8 @@ import BackButton from '@/components/shared/BackButton';
 import ProgressBar from '@/components/shared/ProgressBar';
 import { useData } from '@/contexts/DataContext';
 import { ArrowRight, Upload } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import WelcomeBackNote from '@/components/shared/WelcomeBackNote';
 
 const STEP_LABELS = ['4 easy steps!', 'Getting there!', 'Almost there!', 'Finish setup!'];
 
@@ -29,12 +31,14 @@ const BusinessSetup = () => {
 
   // Step 3
   const [bookingImage, setBookingImage] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Step 4
   const [feeHandling, setFeeHandling] = useState<'customer' | 'business'>('customer');
   const [accountHolder, setAccountHolder] = useState('');
   const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const goNext = () => {
     setTransitioning(true);
@@ -53,24 +57,73 @@ const BusinessSetup = () => {
     }, 200);
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    setSaving(true);
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    setBusiness({
+    const businessPayload = {
       id: crypto.randomUUID(),
       name, description, country, city, address, email, phone,
       bookingPageImage: bookingImage,
       feeHandling, accountHolderName: accountHolder, bankName, accountNumber,
       slug,
-    });
+    };
+    console.log('[BusinessSetup] Finish setup payload:', businessPayload);
+    const ok = await setBusiness(businessPayload);
+    setSaving(false);
+
+    if (!ok) {
+      toast({
+        title: 'Setup failed',
+        description: 'We could not save your business profile. Please try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setHasSetupComplete(true);
-    navigate('/setup/success');
+    toast({ title: 'Business profile saved' });
+    navigate('/dashboard');
+  };
+
+  const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please upload an image file.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const maxSizeInBytes = 3 * 1024 * 1024;
+    if (file.size > maxSizeInBytes) {
+      toast({
+        title: 'Image too large',
+        description: 'Please use an image smaller than 3MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === 'string') {
+        setBookingImage(result);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
-    <div className="min-h-screen flex flex-col px-6 py-6 max-w-md mx-auto">
+    <div className="min-h-screen flex flex-col px-4 py-6 sm:px-6 max-w-2xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <BackButton onClick={step > 0 ? goBack : undefined} />
       </div>
+      <WelcomeBackNote />
 
       <ProgressBar currentStep={step} totalSteps={4} labels={STEP_LABELS} />
 
@@ -130,15 +183,39 @@ const BusinessSetup = () => {
             <h1 className="text-xl font-bold">Your booking page</h1>
             <div className="space-y-4 flex-1">
               <div
-                className="border-2 border-dashed rounded-xl h-40 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-accent/50 transition-colors"
-                onClick={() => {
-                  // TODO: Implement image upload
-                  setBookingImage('/placeholder.svg');
-                }}
+                className="border-2 border-dashed rounded-xl min-h-40 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-accent/50 transition-colors p-4"
+                onClick={() => fileInputRef.current?.click()}
               >
-                <Upload className="h-8 w-8 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">Upload header image</p>
+                {bookingImage ? (
+                  <img
+                    src={bookingImage}
+                    alt="Booking page preview"
+                    className="h-28 w-28 rounded-xl object-cover border"
+                  />
+                ) : (
+                  <Upload className="h-8 w-8 text-muted-foreground" />
+                )}
+                <p className="text-sm text-muted-foreground text-center">
+                  {bookingImage ? 'Tap to change image' : 'Upload profile/header image'}
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
               </div>
+              {bookingImage && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 rounded-full"
+                  onClick={() => setBookingImage('')}
+                >
+                  Remove image
+                </Button>
+              )}
               <p className="text-xs text-muted-foreground">This appears on your booking page</p>
             </div>
             <Button onClick={goNext} className="w-full h-12 rounded-full gap-2">
@@ -181,8 +258,8 @@ const BusinessSetup = () => {
                 <Input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} className="h-12 rounded-xl" />
               </div>
             </div>
-            <Button onClick={handleFinish} className="w-full h-12 rounded-full gap-2" disabled={!accountHolder || !accountNumber}>
-              Finish setup <ArrowRight className="h-4 w-4" />
+            <Button onClick={handleFinish} className="w-full h-12 rounded-full gap-2" disabled={!accountHolder || !accountNumber || saving}>
+              {saving ? 'Saving...' : 'Finish setup'} <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         )}

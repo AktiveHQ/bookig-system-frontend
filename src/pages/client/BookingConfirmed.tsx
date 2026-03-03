@@ -23,20 +23,20 @@ const BookingConfirmed = () => {
 
   if (!state) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center px-4">
         <p className="text-muted-foreground">No booking information.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col px-6 py-6 max-w-md mx-auto">
+    <div className="min-h-screen flex flex-col px-4 py-6 sm:px-6 lg:px-10 lg:py-10 max-w-3xl mx-auto">
       <BackButton onClick={() => navigate('/')} />
 
       <div className="flex-1 flex flex-col items-center justify-center text-center">
-        <h1 className="text-xl font-bold mb-2">Booking confirmed!</h1>
+        <h1 className="text-2xl font-bold mb-2">Booking confirmed!</h1>
 
-        <div className="border rounded-2xl p-5 w-full space-y-3 mt-6 text-left">
+        <div className="border rounded-2xl p-5 w-full space-y-3 mt-6 text-left lg:p-6">
           <h3 className="font-semibold">{state.appointmentName}</h3>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CalendarIcon className="h-4 w-4" />
@@ -54,7 +54,7 @@ const BookingConfirmed = () => {
           A confirmation has been sent to your email.
         </p>
 
-        <div className="w-full space-y-3 mt-8">
+        <div className="w-full grid gap-3 mt-8 sm:grid-cols-2">
           <Button variant="outline" className="w-full h-12 rounded-full">
             Add to calendar
           </Button>

@@ -1,53 +1,134 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { ArrowRight, CalendarIcon } from 'lucide-react';
 import { format, isBefore, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
-import type { Appointment } from '@/types';
+
+type PublicBusiness = {
+  name: string;
+  description?: string;
+  address?: string;
+  headerImageUrl?: string;
+};
+
+type PublicService = {
+  id: string;
+  name: string;
+  description?: string;
+  priceAmount: number;
+  currency: string;
+  durationMinutes: number;
+};
+
+type AvailabilitySlot = {
+  time: string;
+  available: boolean;
+};
+
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL || 'https://booking-system-backend-h7ho.onrender.com'
+).replace(/\/$/, '');
 
 const BusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { business, appointments, getBookingsForDate } = useData();
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [business, setBusiness] = useState<PublicBusiness | null>(null);
+  const [services, setServices] = useState<PublicService[]>([]);
+  const [selectedService, setSelectedService] = useState<PublicService | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!business || business.slug !== slug) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-6">
-        <p className="text-muted-foreground">Business not found.</p>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!slug) return;
+    let active = true;
 
-  const businessAppointments = appointments.filter(a => a.businessId === business.id && !a.paused);
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [businessRes, servicesRes] = await Promise.all([
+          fetch(`${API_BASE}/public/businesses/${slug}`),
+          fetch(`${API_BASE}/public/businesses/${slug}/services`),
+        ]);
 
-  const generateSlots = (apt: Appointment, date: Date) => {
-    const dayOfWeek = date.getDay();
-    if (!apt.availableDays.includes(dayOfWeek)) return [];
+        if (!businessRes.ok || !servicesRes.ok) {
+          throw new Error('Unable to load business info');
+        }
 
-    const dateStr = format(date, 'yyyy-MM-dd');
-    const dayBookings = getBookingsForDate(apt.id, dateStr);
+        const businessJson = await businessRes.json();
+        const servicesJson = await servicesRes.json();
+        const serviceRows = Array.isArray(servicesJson) ? servicesJson : servicesJson?.items ?? [];
 
-    const slots: { time: string; available: boolean }[] = [];
-    const [startH, startM] = apt.startTime.split(':').map(Number);
-    const [endH, endM] = apt.endTime.split(':').map(Number);
-    const startMinutes = startH * 60 + startM;
-    const endMinutes = endH * 60 + endM;
+        if (!active) return;
+        setBusiness({
+          name: String(businessJson?.name ?? ''),
+          description: businessJson?.description ? String(businessJson.description) : '',
+          address: businessJson?.address ? String(businessJson.address) : '',
+          headerImageUrl: businessJson?.headerImageUrl ? String(businessJson.headerImageUrl) : '',
+        });
+        setServices(
+          serviceRows.map((row: any) => ({
+            id: String(row?.id),
+            name: String(row?.name ?? ''),
+            description: row?.description ? String(row.description) : '',
+            priceAmount: Number(row?.priceAmount ?? 0),
+            currency: String(row?.currency ?? 'NGN'),
+            durationMinutes: Number(row?.durationMinutes ?? 30),
+          }))
+        );
+      } catch (error) {
+        console.error('Failed to load public booking page', error);
+        if (active) {
+          setBusiness(null);
+          setServices([]);
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
 
-    for (let m = startMinutes; m + apt.duration <= endMinutes; m += apt.duration) {
-      const h = Math.floor(m / 60);
-      const min = m % 60;
-      const timeStr = `${h.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-      const isBooked = dayBookings.some(b => b.time === timeStr);
-      slots.push({ time: timeStr, available: !isBooked });
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [slug]);
+
+  useEffect(() => {
+    if (!selectedService || !selectedDate) {
+      setSlots([]);
+      return;
     }
-    return slots;
-  };
+
+    let active = true;
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+
+    const loadAvailability = async () => {
+      try {
+        const response = await fetch(
+          `${API_BASE}/public/services/${selectedService.id}/availability?date=${dateStr}`
+        );
+        if (!response.ok) throw new Error('Failed to load availability');
+        const json = await response.json();
+        const rawSlots = Array.isArray(json?.slots) ? json.slots : [];
+        const mapped = rawSlots.map((slot: any) => ({
+          time: String(slot?.startTimeLocal ?? slot?.time ?? ''),
+          available: Boolean(slot?.available ?? slot?.isAvailable ?? false),
+        }));
+        if (active) setSlots(mapped.filter((s: AvailabilitySlot) => s.time));
+      } catch (error) {
+        console.error('Failed to load availability', error);
+        if (active) setSlots([]);
+      }
+    };
+
+    void loadAvailability();
+    return () => {
+      active = false;
+    };
+  }, [selectedService, selectedDate]);
 
   const formatTime = (t: string) => {
     const [h, m] = t.split(':').map(Number);
@@ -56,72 +137,83 @@ const BusinessPage = () => {
     return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
   };
 
-  const slots = selectedAppointment && selectedDate
-    ? generateSlots(selectedAppointment, selectedDate)
-    : [];
-
   const handleContinue = () => {
-    if (!selectedAppointment || !selectedDate || !selectedTime) return;
+    if (!selectedService || !selectedDate || !selectedTime) return;
     navigate(`/booking/${slug}/confirm`, {
       state: {
-        appointmentId: selectedAppointment.id,
+        appointmentId: selectedService.id,
+        appointmentName: selectedService.name,
+        appointmentPrice: selectedService.priceAmount,
+        appointmentCurrency: selectedService.currency || 'NGN',
         date: format(selectedDate, 'yyyy-MM-dd'),
         time: selectedTime,
       },
     });
   };
 
-  const isDateDisabled = (date: Date) => {
-    if (isBefore(date, startOfDay(new Date()))) return true;
-    if (!selectedAppointment) return false;
-    return !selectedAppointment.availableDays.includes(date.getDay());
-  };
+  const isDateDisabled = (date: Date) => isBefore(date, startOfDay(new Date()));
+
+  const hasData = useMemo(() => Boolean(business && services.length >= 0), [business, services]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 sm:px-6">
+        <p className="text-muted-foreground">Loading booking page...</p>
+      </div>
+    );
+  }
+
+  if (!hasData || !business) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 sm:px-6">
+        <p className="text-muted-foreground">Business not found.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen px-6 py-6 max-w-lg mx-auto">
-      {/* Business Header */}
-      <div className="flex items-start gap-4 mb-8">
+    <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-10 lg:py-10 max-w-5xl mx-auto">
+      <div className="flex items-start gap-4 mb-8 lg:mb-10">
         <div className="h-16 w-16 rounded-lg bg-accent shrink-0 overflow-hidden">
-          {business.bookingPageImage && (
-            <img src={business.bookingPageImage} alt={business.name} className="h-full w-full object-cover" />
+          {business.headerImageUrl && (
+            <img src={business.headerImageUrl} alt={business.name} className="h-full w-full object-cover" />
           )}
         </div>
         <div className="text-left">
-          <h1 className="text-lg font-bold">{business.name}</h1>
+          <h1 className="text-xl font-bold lg:text-2xl">{business.name}</h1>
           <p className="text-sm text-muted-foreground">{business.description}</p>
         </div>
       </div>
 
-      <h2 className="text-lg font-semibold mb-4">Book an appointment</h2>
+      <h2 className="text-lg font-semibold mb-4 lg:text-xl">Book an appointment</h2>
 
-      {/* Appointment List */}
-      <div className="space-y-3">
-        {businessAppointments.map(apt => (
-          <div key={apt.id}>
+      <div className="space-y-3 lg:space-y-4">
+        {services.map(service => (
+          <div key={service.id}>
             <button
               onClick={() => {
-                setSelectedAppointment(selectedAppointment?.id === apt.id ? null : apt);
+                setSelectedService(selectedService?.id === service.id ? null : service);
                 setSelectedDate(undefined);
                 setSelectedTime(null);
+                setSlots([]);
               }}
               className={cn(
-                'w-full text-left border rounded-2xl p-4 transition-colors',
-                selectedAppointment?.id === apt.id ? 'border-foreground' : 'hover:bg-accent/50'
+                'w-full text-left border rounded-2xl p-4 lg:p-5 transition-colors',
+                selectedService?.id === service.id ? 'border-foreground' : 'hover:bg-accent/50'
               )}
             >
-              <h3 className="font-semibold">{apt.name}</h3>
+              <h3 className="font-semibold">{service.name}</h3>
               <p className="text-sm text-muted-foreground mt-0.5">
-                ₦{apt.price.toLocaleString()} | {apt.duration}mins
+                {service.currency || 'NGN'} {service.priceAmount.toLocaleString()} | {service.durationMinutes}mins
               </p>
-              {apt.description && (
-                <p className="text-sm text-muted-foreground mt-2">{apt.description}</p>
+              {service.description && (
+                <p className="text-sm text-muted-foreground mt-2">{service.description}</p>
               )}
             </button>
 
-            {/* Date picker (revealed on selection) */}
-            {selectedAppointment?.id === apt.id && (
-              <div className="mt-3 space-y-4">
-                <div className="border rounded-2xl p-4">
+            {selectedService?.id === service.id && (
+              <div className="mt-3 space-y-4 lg:space-y-5">
+                <div className="border rounded-2xl p-4 lg:p-5 overflow-x-auto">
                   <div className="flex items-center gap-2 mb-3">
                     <CalendarIcon className="h-4 w-4" />
                     <span className="text-sm font-medium">Select date</span>
@@ -129,20 +221,22 @@ const BusinessPage = () => {
                   <Calendar
                     mode="single"
                     selected={selectedDate}
-                    onSelect={(d) => { setSelectedDate(d); setSelectedTime(null); }}
+                    onSelect={d => {
+                      setSelectedDate(d);
+                      setSelectedTime(null);
+                    }}
                     disabled={isDateDisabled}
                     className="pointer-events-auto"
                   />
                 </div>
 
-                {/* Time slots */}
                 {selectedDate && (
                   <div>
                     <p className="text-sm font-medium mb-3">Available times</p>
                     {slots.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">There are no bookings for this day</p>
+                      <p className="text-sm text-muted-foreground">No available slots for this day</p>
                     ) : (
-                      <div className="flex gap-2 flex-wrap">
+                      <div className="flex gap-2 flex-wrap lg:gap-3">
                         {slots.map(slot => (
                           <button
                             key={slot.time}
@@ -164,7 +258,7 @@ const BusinessPage = () => {
                 )}
 
                 {selectedTime && (
-                  <Button onClick={handleContinue} className="w-full h-12 rounded-full gap-2 mt-4">
+                  <Button onClick={handleContinue} className="w-full sm:w-auto sm:min-w-44 h-12 rounded-full gap-2 mt-4">
                     Continue <ArrowRight className="h-4 w-4" />
                   </Button>
                 )}

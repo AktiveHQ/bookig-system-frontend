@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '@/contexts/DataContext';
 import BackButton from '@/components/shared/BackButton';
+import WelcomeBackNote from '@/components/shared/WelcomeBackNote';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
@@ -23,11 +24,11 @@ const AppointmentDetail = () => {
 
   const isToday = isSameDay(selectedDate, new Date());
 
-  // Check if appointment can be edited/deleted
-  const hasFutureBookings = allBookings.some(b => isAfter(parseISO(b.date), new Date()) || isSameDay(parseISO(b.date), new Date()));
+  const hasFutureBookings = allBookings.some(
+    b => isAfter(parseISO(b.date), new Date()) || isSameDay(parseISO(b.date), new Date())
+  );
 
   useEffect(() => {
-    // On mobile, scroll to availability card when date is selected
     if (window.innerWidth < 768 && availabilityRef.current) {
       availabilityRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -43,7 +44,11 @@ const AppointmentDetail = () => {
 
   const handleDelete = () => {
     if (hasFutureBookings) {
-      toast({ title: 'Cannot delete', description: 'This appointment has active bookings. Wait until all booked days have passed.', variant: 'destructive' });
+      toast({
+        title: 'Cannot delete',
+        description: 'This appointment has active bookings. Wait until all booked days have passed.',
+        variant: 'destructive',
+      });
       return;
     }
     deleteAppointment(appointment.id);
@@ -58,10 +63,13 @@ const AppointmentDetail = () => {
 
   const handleEdit = () => {
     if (hasFutureBookings) {
-      toast({ title: 'Cannot edit', description: 'This appointment has active bookings. Wait until all booked days have passed.', variant: 'destructive' });
+      toast({
+        title: 'Cannot edit',
+        description: 'This appointment has active bookings. Wait until all booked days have passed.',
+        variant: 'destructive',
+      });
       return;
     }
-    // TODO: Navigate to edit form
     toast({ title: 'Edit functionality', description: 'Edit form coming soon.' });
   };
 
@@ -72,59 +80,52 @@ const AppointmentDetail = () => {
     return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
   };
 
+  const appointmentPrice = Number(appointment.price ?? 0);
+
   return (
     <div className="min-h-screen px-6 py-6 max-w-4xl mx-auto">
       <BackButton />
+      <WelcomeBackNote />
 
       <div className="mt-4 mb-6">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold">{appointment.name}</h1>
             <p className="text-sm text-muted-foreground">
-              ₦{appointment.price.toLocaleString()} | {appointment.duration}mins
+              NGN {appointmentPrice.toLocaleString()} | {appointment.duration}mins
             </p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Calendar */}
         <div className="border rounded-2xl p-4">
           <Calendar
             mode="single"
             selected={selectedDate}
-            onSelect={(d) => d && setSelectedDate(d)}
+            onSelect={d => d && setSelectedDate(d)}
             className="pointer-events-auto"
           />
         </div>
 
-        {/* Availability Card */}
         <div ref={availabilityRef} className="border rounded-2xl p-4">
-          <h3 className="font-semibold mb-4">
-            {isToday ? "Today's Availability" : "Day's Availability"}
-          </h3>
+          <h3 className="font-semibold mb-4">{isToday ? "Today's Availability" : "Day's Availability"}</h3>
 
           {sortedDayBookings.length === 0 ? (
             <p className="text-sm text-muted-foreground">No client for {isToday ? 'today' : 'this day'}</p>
           ) : (
-            <>
-              <div className="space-y-2">
-                {sortedDayBookings.map(booking => (
-                  <div
-                    key={booking.id}
-                    className="flex items-center justify-between p-3 rounded-xl text-sm border"
-                  >
-                    <span className="font-medium">{booking.clientName}</span>
-                    <span className="text-muted-foreground">{formatTime(booking.time)}</span>
-                  </div>
-                ))}
-              </div>
-            </>
+            <div className="space-y-2">
+              {sortedDayBookings.map(booking => (
+                <div key={booking.id} className="flex items-center justify-between p-3 rounded-xl text-sm border">
+                  <span className="font-medium">{booking.clientName}</span>
+                  <span className="text-muted-foreground">{formatTime(booking.time)}</span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>
 
-      {/* Action Buttons */}
       <div className="flex gap-3 mt-6 flex-wrap">
         <Button variant="outline" className="gap-2 rounded-full" onClick={handleEdit} disabled={hasFutureBookings}>
           <Pencil className="h-4 w-4" /> Edit

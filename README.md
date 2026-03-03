@@ -4,6 +4,16 @@
 
 **URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
 
+## API configuration
+
+Create a `.env` file in the project root:
+
+```sh
+VITE_API_BASE_URL=https://booking-system-backend-h7ho.onrender.com
+```
+
+Without this, frontend API requests may hit the Vite app server and return HTML instead of JSON.
+
 ## How can I edit this code?
 
 There are several ways of editing your application.
