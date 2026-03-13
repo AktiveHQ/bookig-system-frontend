@@ -8,35 +8,48 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 7%;
+    /* Soft Peach Mist (#FFF6F2) */
+    --background: 18.5 100% 97.5%;
+    /* Primary text (#111111) */
+    --foreground: 0 0% 6.7%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 7%;
+    --card-foreground: 0 0% 6.7%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 7%;
+    --popover-foreground: 0 0% 6.7%;
 
-    --primary: 0 0% 7%;
+    /* Deep Purple (#6B4EFF) */
+    --primary: 249.8 100% 65.3%;
+    /* Hover Purple (#5A3EE6) */
+    --primary-hover: 250 77.1% 57.3%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 7%;
+    /* Soft Lavender Tint (#F6F2FF) */
+    --secondary: 258.5 100% 97.5%;
+    --secondary-foreground: 0 0% 6.7%;
 
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
+    --muted: 258.5 100% 97.5%;
+    /* Secondary text (#6B7280) */
+    --muted-foreground: 220 8.9% 46.1%;
 
-    --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 7%;
+    --accent: 258.5 100% 97.5%;
+    --accent-foreground: 0 0% 6.7%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 0 0% 7%;
+    /* Card border (#F1E9E5) */
+    --border: 20 30% 92.2%;
+    --input: 20 30% 92.2%;
+    --ring: 249.8 100% 65.3%;
 
-    --radius: 0.75rem;
+    /* Cards: 16px; Buttons: 12px via Tailwind rounded-sm */
+    --radius: 1rem;
+
+    /* Notice / info box */
+    --notice: 20.9 100% 95.5%; /* #FFF0E8 */
+    --notice-border: 17.8 100% 89.4%; /* #FFD9C9 */
 
     --sidebar-background: 0 0% 98%;
 
@@ -101,5 +114,13 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .notice-box {
+    @apply rounded-lg border px-4 py-3 text-sm text-foreground;
+    background: hsl(var(--notice));
+    border-color: hsl(var(--notice-border));
   }
 }
