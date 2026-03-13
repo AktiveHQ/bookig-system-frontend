@@ -8,8 +8,8 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Soft Peach Mist (#FFF6F2) */
-    --background: 18.5 100% 97.5%;
+    /* Off-white (#FAFAFA) */
+    --background: 0 0% 98%;
     /* Primary text (#111111) */
     --foreground: 0 0% 6.7%;
 
