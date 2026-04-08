@@ -53,7 +53,7 @@ export interface Booking {
   clientEmail: string;
   date: string; // YYYY-MM-DD
   time: string; // "10:00"
-  status: 'confirmed' | 'cancelled' | 'completed';
+  status: 'pending_payment' | 'confirmed' | 'cancelled' | 'expired' | 'completed';
   createdAt: string;
 }
 

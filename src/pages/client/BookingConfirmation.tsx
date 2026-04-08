@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +30,13 @@ const BookingConfirmation = () => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkout, setCheckout] = useState<null | {
+    subtotal: number;
+    platformFeeAmount: number;
+    amountToCharge: number;
+    currency: string;
+  }>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   if (!state?.appointmentId || !state?.date || !state?.time) {
     return (
@@ -39,6 +46,35 @@ const BookingConfirmation = () => {
     );
   }
 
+  useEffect(() => {
+    let active = true;
+    const loadCheckout = async () => {
+      setCheckoutLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/public/services/${state.appointmentId}/checkout`);
+        if (!res.ok) throw new Error('Failed to load checkout');
+        const json = await res.json();
+        if (!active) return;
+        setCheckout({
+          subtotal: Number(json?.subtotal ?? 0),
+          platformFeeAmount: Number(json?.platformFeeAmount ?? 0),
+          amountToCharge: Number(json?.amountToCharge ?? 0),
+          currency: String(json?.currency ?? state.appointmentCurrency ?? 'NGN'),
+        });
+      } catch (error) {
+        console.error('Failed to load checkout', error);
+        if (active) setCheckout(null);
+      } finally {
+        if (active) setCheckoutLoading(false);
+      }
+    };
+
+    void loadCheckout();
+    return () => {
+      active = false;
+    };
+  }, [state.appointmentId, state.appointmentCurrency]);
+
   const formatTime = (t: string) => {
     const [h, m] = t.split(':').map(Number);
     const ampm = h >= 12 ? 'PM' : 'AM';
@@ -46,9 +82,11 @@ const BookingConfirmation = () => {
     return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
   };
 
-  const appointmentPrice = Number(state.appointmentPrice ?? 0);
-  const currency = state.appointmentCurrency || 'NGN';
-  const total = appointmentPrice;
+  const currency = checkout?.currency || state.appointmentCurrency || 'NGN';
+  const subtotal = checkout?.subtotal ?? Number(state.appointmentPrice ?? 0);
+  const platformFee = checkout?.platformFeeAmount ?? 0;
+  const total = checkout?.amountToCharge ?? subtotal;
+  const formattedPayAmount = useMemo(() => `${currency} ${Number(total).toLocaleString()}`, [currency, total]);
 
   const handlePay = async () => {
     setLoading(true);
@@ -92,6 +130,23 @@ const BookingConfirmation = () => {
         throw new Error('Payment URL missing');
       }
 
+      try {
+        sessionStorage.setItem(
+          'akhq:lastBooking',
+          JSON.stringify({
+            bookingId: Number(bookingId),
+            slug,
+            appointmentName: state.appointmentName,
+            date: state.date,
+            time: state.time,
+            amountToCharge: Number(paymentJson?.amountToCharge ?? total),
+            currency: String(paymentJson?.currency ?? currency),
+          })
+        );
+      } catch {
+        // ignore
+      }
+
       window.location.href = authorizationUrl;
     } catch (error) {
       console.error(error);
@@ -123,7 +178,7 @@ const BookingConfirmation = () => {
                 <Clock className="h-4 w-4" />
                 <span>{formatTime(state.time)}</span>
               </div>
-              <p className="text-sm font-medium">{currency} {appointmentPrice.toLocaleString()}</p>
+              <p className="text-sm font-medium">{currency} {Number(subtotal).toLocaleString()}</p>
             </div>
 
             <div className="border rounded-2xl p-5 space-y-3">
@@ -135,11 +190,17 @@ const BookingConfirmation = () => {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Service fee</span>
-                  <span>{currency} {appointmentPrice.toLocaleString()}</span>
+                  <span>{currency} {Number(subtotal).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Service charge (5%)</span>
+                  <span className="text-muted-foreground">
+                    {checkoutLoading ? '...' : `${currency} ${Number(platformFee).toLocaleString()}`}
+                  </span>
                 </div>
                 <div className="border-t pt-2 flex justify-between text-sm font-semibold">
                   <span>Total</span>
-                  <span>{currency} {total.toLocaleString()}</span>
+                  <span>{checkoutLoading ? '...' : `${currency} ${Number(total).toLocaleString()}`}</span>
                 </div>
               </div>
             </div>
@@ -161,8 +222,12 @@ const BookingConfirmation = () => {
               Pay Securely. Powered by Paystack
             </p>
 
-            <Button onClick={handlePay} className="w-full h-12 rounded-full gap-2" disabled={!fullName || !email || loading}>
-              {loading ? 'Processing...' : `Pay ${currency} ${total.toLocaleString()}`}
+            <Button
+              onClick={handlePay}
+              className="w-full h-12 rounded-full gap-2"
+              disabled={!fullName || !email || loading || checkoutLoading}
+            >
+              {loading ? 'Processing...' : `Pay ${formattedPayAmount}`}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </div>

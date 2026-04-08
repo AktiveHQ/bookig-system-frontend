@@ -12,12 +12,14 @@ import { Pencil, Trash2, Pause, Play } from 'lucide-react';
 const AppointmentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { appointments, bookings, deleteAppointment, setAppointmentPaused, getBookingsForDate } = useData();
+  const { appointments, bookings, deleteAppointment, setAppointmentPaused, getBookingsForDate, refreshBookingsForDate } = useData();
   const appointment = appointments.find(a => a.id === id);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const availabilityRef = useRef<HTMLDivElement>(null);
 
-  const allBookings = bookings.filter(b => b.appointmentId === id && b.status === 'confirmed');
+  const allBookings = bookings.filter(
+    b => b.appointmentId === id && (b.status === 'pending_payment' || b.status === 'confirmed')
+  );
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
   const dayBookings = getBookingsForDate(id!, dateStr);
   const sortedDayBookings = [...dayBookings].sort((a, b) => a.time.localeCompare(b.time));
@@ -33,6 +35,11 @@ const AppointmentDetail = () => {
       availabilityRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [selectedDate]);
+
+  useEffect(() => {
+    if (!id) return;
+    void refreshBookingsForDate(id, dateStr);
+  }, [id, dateStr, refreshBookingsForDate]);
 
   if (!appointment) {
     return (

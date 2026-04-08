@@ -15,6 +15,7 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DURATION_OPTIONS = [30, 45, 60];
 const MOBILE_STEP_LABELS = ['1 easy steps!', 'Almost there!', 'Ready to publish!'];
 const WIDE_STEP_LABELS = ['Service details', 'Availability setup'];
+const MAX_BOOKINGS_PER_SLOT_OPTIONS = [1, 2, 3, 4, 5];
 
 const CreateAppointment = () => {
   const navigate = useNavigate();
@@ -36,6 +37,7 @@ const CreateAppointment = () => {
   const [duration, setDuration] = useState(30);
   const [customDuration, setCustomDuration] = useState('');
   const [isCustomDuration, setIsCustomDuration] = useState(false);
+  const [maxBookingsPerSlot, setMaxBookingsPerSlot] = useState(1);
 
   const toggleDay = (day: number) => {
     setSelectedDays(prev => (prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]));
@@ -114,7 +116,7 @@ const CreateAppointment = () => {
       startTime,
       endTime,
       duration: actualDuration,
-      maxBookingsPerSlot: 1,
+      maxBookingsPerSlot,
       messageForClients: message || undefined,
       createdAt: new Date().toISOString(),
     };
@@ -245,6 +247,27 @@ const CreateAppointment = () => {
             />
           )}
         </div>
+
+        <div>
+          <p className="text-sm font-semibold mb-1">Bookings per time slot</p>
+          <p className="text-xs text-muted-foreground mb-3">
+            Set how many clients can book the same time.
+          </p>
+          <div className="flex gap-2 flex-wrap">
+            {MAX_BOOKINGS_PER_SLOT_OPTIONS.map(opt => (
+              <button
+                key={opt}
+                onClick={() => setMaxBookingsPerSlot(opt)}
+                className={cn(
+                  'px-4 py-2 rounded-full text-sm font-medium transition-colors',
+                  maxBookingsPerSlot === opt ? 'bg-foreground text-background' : 'border hover:bg-accent'
+                )}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -282,6 +305,10 @@ const CreateAppointment = () => {
         <span className="text-muted-foreground">Max bookings/day</span>
         <span className="font-medium">{maxBookingsPerDay}</span>
       </div>
+      <div className="flex justify-between text-sm gap-4">
+        <span className="text-muted-foreground">Bookings per slot</span>
+        <span className="font-medium">{maxBookingsPerSlot}</span>
+      </div>
     </div>
   );
 
@@ -312,6 +339,10 @@ const CreateAppointment = () => {
       <div className="flex justify-between text-sm">
         <span className="text-muted-foreground">Max bookings/day</span>
         <span className="font-medium">{maxBookingsPerDay}</span>
+      </div>
+      <div className="flex justify-between text-sm">
+        <span className="text-muted-foreground">Bookings per slot</span>
+        <span className="font-medium">{maxBookingsPerSlot}</span>
       </div>
     </div>
   );

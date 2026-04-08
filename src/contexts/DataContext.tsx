@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Business, Appointment, Booking, Notification } from '@/types';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -13,6 +13,7 @@ interface DataContextType {
   updateAppointment: (a: Appointment) => void;
   deleteAppointment: (id: string) => Promise<void>;
   setAppointmentPaused: (id: string, paused: boolean) => Promise<void>;
+  refreshBookingsForDate: (appointmentId: string, date: string) => Promise<void>;
   bookings: Booking[];
   addBooking: (b: Booking) => void;
   getBookingsForAppointment: (appointmentId: string) => Booking[];
@@ -80,10 +81,33 @@ const toBooking = (raw: any, appointmentId = '', businessSlug = ''): Booking => 
   businessSlug: String(raw?.businessSlug ?? businessSlug),
   clientName: String(raw?.clientName ?? ''),
   clientEmail: String(raw?.clientEmail ?? ''),
-  date: String(raw?.date ?? ''),
-  time: String(raw?.startTimeLocal ?? raw?.time ?? ''),
-  status: String(raw?.status ?? 'confirmed').toLowerCase() === 'cancelled' ? 'cancelled' : 'confirmed',
-  createdAt: String(raw?.createdAt ?? new Date().toISOString()),
+  date: (() => {
+    const startAt = raw?.startAt ? new Date(String(raw.startAt)) : null;
+    if (startAt && !Number.isNaN(startAt.getTime())) {
+      return startAt.toISOString().slice(0, 10);
+    }
+    return String(raw?.date ?? '');
+  })(),
+  time: (() => {
+    const startAt = raw?.startAt ? new Date(String(raw.startAt)) : null;
+    if (startAt && !Number.isNaN(startAt.getTime())) {
+      const hh = startAt.getUTCHours().toString().padStart(2, '0');
+      const mm = startAt.getUTCMinutes().toString().padStart(2, '0');
+      return `${hh}:${mm}`;
+    }
+    return String(raw?.startTimeLocal ?? raw?.time ?? '');
+  })(),
+  status: (() => {
+    const s = String(raw?.status ?? '').toUpperCase();
+    if (s === 'PENDING_PAYMENT') return 'pending_payment';
+    if (s === 'CONFIRMED') return 'confirmed';
+    if (s === 'CANCELLED') return 'cancelled';
+    if (s === 'EXPIRED') return 'expired';
+    const legacy = String(raw?.status ?? 'confirmed').toLowerCase();
+    if (legacy === 'cancelled') return 'cancelled';
+    return 'confirmed';
+  })(),
+  createdAt: String(raw?.createdAt ?? raw?.startAt ?? new Date().toISOString()),
 });
 
 async function getAuthHeader(): Promise<Record<string, string>> {
@@ -196,6 +220,50 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const mappedAppointments = serviceList.map((s: any) => toAppointment(s, mappedBusiness.id));
         setAppointments(mappedAppointments);
         setBusinessLinkCreated(mappedAppointments.length > 0);
+
+        // Hydrate saved availability rules so owner dashboard reflects actual hours/days.
+        try {
+          const availabilityByServiceId = await Promise.all(
+            mappedAppointments.map(async (apt) => {
+              try {
+                const result = await apiFetch(`/dashboard/services/${apt.id}/availability`);
+                const rules = Array.isArray(result?.rules) ? result.rules : [];
+                const first = rules[0];
+                if (!first) return null;
+                return {
+                  id: apt.id,
+                  availableDays: Array.isArray(first.daysOfWeek)
+                    ? first.daysOfWeek.map(Number)
+                    : apt.availableDays,
+                  startTime: typeof first.startTimeLocal === 'string' ? first.startTimeLocal : apt.startTime,
+                  endTime: typeof first.endTimeLocal === 'string' ? first.endTimeLocal : apt.endTime,
+                };
+              } catch {
+                return null;
+              }
+            })
+          );
+
+          const byId = new Map(
+            availabilityByServiceId.filter(Boolean).map((row: any) => [row.id, row])
+          );
+          if (byId.size > 0) {
+            setAppointments(prev =>
+              prev.map(apt => {
+                const update = byId.get(apt.id);
+                if (!update) return apt;
+                return {
+                  ...apt,
+                  availableDays: update.availableDays,
+                  startTime: update.startTime,
+                  endTime: update.endTime,
+                };
+              })
+            );
+          }
+        } catch {
+          // ignore
+        }
 
         const today = new Date().toISOString().slice(0, 10);
         const bookingsByService = await Promise.all(
@@ -345,6 +413,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       description: a.description,
       priceAmount: a.price,
       durationMinutes: a.duration,
+      maxBookingsPerSlot: a.maxBookingsPerSlot,
     };
 
     void (async () => {
@@ -386,6 +455,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       description: a.description,
       priceAmount: a.price,
       durationMinutes: a.duration,
+      maxBookingsPerSlot: a.maxBookingsPerSlot,
     };
 
     void (async () => {
@@ -472,7 +542,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 ? {
                     ...row,
                     id: String(created.bookingId),
-                    status: 'confirmed',
+                    status: 'pending_payment',
                   }
                 : row
             )
@@ -484,6 +554,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     })();
   };
 
+  const refreshBookingsForDate = useCallback(
+    async (appointmentId: string, date: string) => {
+      if (!business?.slug) return;
+      const result = await apiFetch(`/dashboard/services/${appointmentId}/bookings?date=${date}`);
+      const rows = Array.isArray(result) ? result : result?.items ?? [];
+      const mapped = rows.map((b: any) => toBooking(b, appointmentId, business.slug));
+
+      setBookings(prev => {
+        const next = new Map<string, Booking>();
+        for (const row of prev) next.set(row.id, row);
+        for (const row of mapped) next.set(row.id, row);
+        return Array.from(next.values());
+      });
+    },
+    [business?.slug]
+  );
+
   const getBookingsForAppointment = (appointmentId: string) =>
     bookings.filter(b => b.appointmentId === appointmentId);
 
@@ -492,7 +579,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       b =>
         b.appointmentId === appointmentId &&
         b.date === date &&
-        (b.status === 'confirmed' || b.status === 'completed')
+        (b.status === 'pending_payment' || b.status === 'confirmed' || b.status === 'completed')
     );
 
   const value = useMemo(
@@ -506,6 +593,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updateAppointment,
       deleteAppointment,
       setAppointmentPaused,
+      refreshBookingsForDate,
       bookings,
       addBooking,
       getBookingsForAppointment,

@@ -23,10 +23,19 @@ const Dashboard = () => {
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const getAppointmentBookingCount = (id: string) =>
-    bookings.filter(b => b.appointmentId === id && b.status === 'confirmed').length;
+    bookings.filter(
+      b =>
+        b.appointmentId === id &&
+        (b.status === 'pending_payment' || b.status === 'confirmed' || b.status === 'completed')
+    ).length;
 
   const getTodayBookingCount = (id: string) =>
-    bookings.filter(b => b.appointmentId === id && b.status === 'confirmed' && b.date === today).length;
+    bookings.filter(
+      b =>
+        b.appointmentId === id &&
+        b.date === today &&
+        (b.status === 'pending_payment' || b.status === 'confirmed' || b.status === 'completed')
+    ).length;
 
   const handleLogout = async () => {
     await logout();
@@ -47,7 +56,7 @@ const Dashboard = () => {
     const hasFutureBookings = bookings.some(
       b =>
         b.appointmentId === appointmentId &&
-        b.status === 'confirmed' &&
+        (b.status === 'pending_payment' || b.status === 'confirmed') &&
         (isAfter(parseISO(b.date), new Date()) || isSameDay(parseISO(b.date), new Date()))
     );
 
@@ -200,7 +209,9 @@ const Dashboard = () => {
   }
 
   const activeAppointments = appointments.filter(a => !a.paused).length;
-  const totalConfirmedBookings = bookings.filter(b => b.status === 'confirmed').length;
+  const totalBookings = bookings.filter(
+    b => b.status === 'pending_payment' || b.status === 'confirmed' || b.status === 'completed'
+  ).length;
 
   return (
     <div className="min-h-screen flex flex-col px-4 py-6 sm:px-6 lg:px-10 max-w-7xl mx-auto">
@@ -247,13 +258,21 @@ const Dashboard = () => {
           <p className="text-2xl font-semibold mt-1">{activeAppointments}</p>
         </div>
         <div className="border rounded-xl p-4">
-          <p className="text-xs text-muted-foreground">Confirmed bookings</p>
-          <p className="text-2xl font-semibold mt-1">{totalConfirmedBookings}</p>
+          <p className="text-xs text-muted-foreground">Total bookings</p>
+          <p className="text-2xl font-semibold mt-1">{totalBookings}</p>
         </div>
         <div className="border rounded-xl p-4">
           <p className="text-xs text-muted-foreground">Bookings today</p>
           <p className="text-2xl font-semibold mt-1">
-            {bookings.filter(b => b.status === 'confirmed' && b.date === today).length}
+            {
+              bookings.filter(
+                b =>
+                  b.date === today &&
+                  (b.status === 'pending_payment' ||
+                    b.status === 'confirmed' ||
+                    b.status === 'completed')
+              ).length
+            }
           </p>
         </div>
       </div>
