@@ -12,7 +12,7 @@ import { Pencil, Trash2, Pause, Play } from 'lucide-react';
 const AppointmentDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { appointments, bookings, updateAppointment, deleteAppointment, getBookingsForDate } = useData();
+  const { appointments, bookings, deleteAppointment, setAppointmentPaused, getBookingsForDate } = useData();
   const appointment = appointments.find(a => a.id === id);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const availabilityRef = useRef<HTMLDivElement>(null);
@@ -42,7 +42,7 @@ const AppointmentDetail = () => {
     );
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (hasFutureBookings) {
       toast({
         title: 'Cannot delete',
@@ -51,14 +51,31 @@ const AppointmentDetail = () => {
       });
       return;
     }
-    deleteAppointment(appointment.id);
-    toast({ title: 'Appointment deleted' });
-    navigate('/dashboard');
+    try {
+      await deleteAppointment(appointment.id);
+      toast({ title: 'Appointment deleted' });
+      navigate('/dashboard');
+    } catch (error) {
+      toast({
+        title: 'Delete failed',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handlePause = () => {
-    updateAppointment({ ...appointment, paused: !appointment.paused });
-    toast({ title: appointment.paused ? 'Appointment resumed' : 'Appointment paused' });
+  const handlePause = async () => {
+    const nextPaused = !appointment.paused;
+    try {
+      await setAppointmentPaused(appointment.id, Boolean(nextPaused));
+      toast({ title: nextPaused ? 'Appointment paused' : 'Appointment resumed' });
+    } catch (error) {
+      toast({
+        title: 'Update failed',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleEdit = () => {

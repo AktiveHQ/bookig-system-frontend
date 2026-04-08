@@ -20,6 +20,10 @@ import AppointmentCreated from "./pages/appointments/AppointmentCreated";
 import BusinessPage from "./pages/client/BusinessPage";
 import BookingConfirmation from "./pages/client/BookingConfirmation";
 import BookingConfirmed from "./pages/client/BookingConfirmed";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import BusinessReview from "./pages/admin/BusinessReview";
+import AdminLogin from "./pages/admin/AdminLogin";
+import CreateAdminAccount from "./pages/admin/CreateAdminAccount";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +55,12 @@ const App = () => (
               {/* Appointments */}
               <Route path="/appointments/create" element={<CreateAppointment />} />
               <Route path="/appointments/created/:id" element={<AppointmentCreated />} />
+
+              {/* Admin */}
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/businesses/:id" element={<BusinessReview />} />
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/admin/create" element={<CreateAdminAccount />} />
 
               {/* Client Booking */}
               <Route path="/booking/:slug" element={<BusinessPage />} />

@@ -1,15 +1,18 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import type { Business, Appointment, Booking } from '@/types';
+import type { Business, Appointment, Booking, Notification } from '@/types';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
 interface DataContextType {
   business: Business | null;
   setBusiness: (b: Business) => Promise<boolean>;
+  notifications: Notification[];
+  dismissNotification: (id: number) => Promise<void>;
   appointments: Appointment[];
   addAppointment: (a: Appointment) => void;
   updateAppointment: (a: Appointment) => void;
-  deleteAppointment: (id: string) => void;
+  deleteAppointment: (id: string) => Promise<void>;
+  setAppointmentPaused: (id: string, paused: boolean) => Promise<void>;
   bookings: Booking[];
   addBooking: (b: Booking) => void;
   getBookingsForAppointment: (appointmentId: string) => Booking[];
@@ -37,13 +40,18 @@ const toBusiness = (raw: any): Business => ({
   address: String(raw?.address ?? ''),
   email: String(raw?.contactEmail ?? raw?.email ?? ''),
   phone: raw?.contactPhone ? String(raw.contactPhone) : raw?.phone ? String(raw.phone) : undefined,
-  bookingPageImage: raw?.headerImageUrl ? String(raw.headerImageUrl) : raw?.bookingPageImage ? String(raw.bookingPageImage) : undefined,
+  headerImageUrl: raw?.headerImageUrl ? String(raw.headerImageUrl) : raw?.bookingPageImage ? String(raw.bookingPageImage) : undefined,
+  idVerificationType: raw?.idVerificationType ? String(raw.idVerificationType) as any : null,
+  idDocumentData: raw?.idDocumentData ? String(raw.idDocumentData) : null,
+  cacDocumentData: raw?.cacDocumentData ? String(raw.cacDocumentData) : null,
+  verificationStatus: raw?.verificationStatus ? String(raw.verificationStatus) as any : null,
+  verificationComment: raw?.verificationComment ? String(raw.verificationComment) : null,
   feeHandling:
     raw?.feePolicy === 'OWNER_PAYS' || raw?.feeHandling === 'business' ? 'business' : 'customer',
   accountHolderName: String(raw?.accountHolderName ?? ''),
   bankName: String(raw?.bankName ?? ''),
   accountNumber: String(raw?.accountNumber ?? ''),
-  slug: String(raw?.slug ?? ''),
+  slug: String(raw?.bookingSlug ?? raw?.slug ?? ''),
 });
 
 const toAppointment = (raw: any, fallbackBusinessId = ''): Appointment => ({
@@ -60,7 +68,10 @@ const toAppointment = (raw: any, fallbackBusinessId = ''): Appointment => ({
   maxBookingsPerSlot: Number(raw?.maxBookingsPerSlot ?? 1),
   messageForClients: raw?.messageForClients ? String(raw.messageForClients) : undefined,
   createdAt: String(raw?.createdAt ?? new Date().toISOString()),
-  paused: typeof raw?.paused === 'boolean' ? raw.paused : raw?.isActive === false,
+  paused:
+    typeof raw?.paused === 'boolean'
+      ? raw.paused
+      : String(raw?.status ?? '').toUpperCase() === 'INACTIVE' || raw?.isActive === false,
 });
 
 const toBooking = (raw: any, appointmentId = '', businessSlug = ''): Booking => ({
@@ -99,7 +110,17 @@ async function apiFetch(path: string, init?: RequestInit, authenticated = true) 
   });
 
   if (!response.ok) {
-    throw new Error(`API ${response.status}: ${path}`);
+    const contentType = response.headers.get('content-type') || '';
+    let bodySnippet = '';
+    try {
+      const text = await response.text();
+      bodySnippet = text ? text.slice(0, 1200) : '';
+    } catch {
+      // ignore
+    }
+    throw new Error(
+      `API ${response.status}: ${path}${bodySnippet ? `\n${contentType || 'text/plain'}\n${bodySnippet}` : ''}`,
+    );
   }
 
   if (response.status === 204) return null;
@@ -113,11 +134,23 @@ async function apiFetch(path: string, init?: RequestInit, authenticated = true) 
   return response.json();
 }
 
+const getClientTimeZone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+};
+
 const toFeePolicy = (feeHandling: Business['feeHandling']) =>
   feeHandling === 'business' ? 'OWNER_PAYS' : 'CLIENT_PAYS';
 
+const isNotFoundError = (error: unknown) =>
+  error instanceof Error && error.message.startsWith('API 404:');
+
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [business, setBusinessState] = useState<Business | null>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [hasSetupComplete, setHasSetupComplete] = useState<boolean>(false);
@@ -127,6 +160,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async user => {
       if (!user) {
         setBusinessState(null);
+        setNotifications([]);
         setAppointments([]);
         setBookings([]);
         setHasSetupComplete(false);
@@ -135,10 +169,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       try {
-        const meBusinessRaw = await apiFetch('/dashboard/businesses/me');
-        const mappedBusiness = toBusiness(meBusinessRaw);
-        setBusinessState(mappedBusiness);
-        setHasSetupComplete(Boolean(mappedBusiness.id || mappedBusiness.slug));
+        let mappedBusiness: Business | null = null;
+        try {
+          const meBusinessRaw = await apiFetch('/dashboard/businesses/me');
+          mappedBusiness = toBusiness(meBusinessRaw);
+          setBusinessState(mappedBusiness);
+          setHasSetupComplete(Boolean(mappedBusiness.id || mappedBusiness.slug));
+        } catch (error) {
+          if (isNotFoundError(error)) {
+            setBusinessState(null);
+            setHasSetupComplete(false);
+            setAppointments([]);
+            setBookings([]);
+            setBusinessLinkCreated(false);
+          } else {
+            throw error;
+          }
+        }
+
+        if (!mappedBusiness) {
+          return;
+        }
 
         const servicesRaw = await apiFetch('/dashboard/services');
         const serviceList = Array.isArray(servicesRaw) ? servicesRaw : servicesRaw?.items ?? [];
@@ -159,6 +210,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           })
         );
         setBookings(bookingsByService.flat());
+
+        try {
+          const notifRaw = await apiFetch('/dashboard/notifications');
+          const notifRows = Array.isArray(notifRaw) ? notifRaw : notifRaw?.items ?? [];
+          setNotifications(
+            notifRows.map((row: any) => ({
+              id: Number(row?.id),
+              type: (row?.type || 'info') as any,
+              message: String(row?.message ?? ''),
+              createdAt: String(row?.createdAt ?? new Date().toISOString()),
+              businessId: row?.businessId ?? null,
+            }))
+          );
+        } catch (error) {
+          console.error('Failed to load notifications', error);
+          setNotifications([]);
+        }
       } catch (error) {
         console.error('Failed to load dashboard data', error);
       }
@@ -168,27 +236,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const setBusiness = async (b: Business): Promise<boolean> => {
-    setBusinessState(b);
-    setHasSetupComplete(true);
+    const hasPersistedBusinessId =
+      Boolean(business?.id) && /^\d+$/.test(String(business?.id || ''));
 
     const createPayload = {
       name: b.name,
       description: b.description,
       contactEmail: b.email,
+      country: b.country || null,
       feePolicy: toFeePolicy(b.feeHandling),
     };
 
     const updatePayload = {
+      country: b.country || null,
       city: b.city,
       address: b.address,
       contactEmail: b.email,
       contactPhone: b.phone,
-      headerImageUrl: b.bookingPageImage,
+      headerImageUrl: b.headerImageUrl,
+      idVerificationType: b.idVerificationType ?? null,
+      idDocumentData: b.idDocumentData ?? null,
+      cacDocumentData: b.cacDocumentData ?? null,
+      bankName: b.bankName || null,
+      accountNumber: b.accountNumber || null,
+      accountHolderName: b.accountHolderName || null,
       feePolicy: toFeePolicy(b.feeHandling),
     };
 
     try {
-      if (business?.id) {
+      if (hasPersistedBusinessId) {
         console.log('[BusinessUpdate] PATCH /dashboard/businesses/me payload:', updatePayload);
         await apiFetch('/dashboard/businesses/me', {
           method: 'PATCH',
@@ -211,10 +287,52 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           body: JSON.stringify(updatePayload),
         });
       }
+
+      try {
+        const meBusinessRaw = await apiFetch('/dashboard/businesses/me');
+        const mapped = toBusiness(meBusinessRaw);
+        setBusinessState(mapped);
+        setHasSetupComplete(Boolean(mapped.id || mapped.slug));
+      } catch (error) {
+        if (!isNotFoundError(error)) throw error;
+      }
       return true;
     } catch (error) {
+      // If we hit a stale local state (no business in DB), retry by creating.
+      if (isNotFoundError(error)) {
+        try {
+          console.log('[BusinessSetup] Retry POST /dashboard/businesses payload:', createPayload);
+          await apiFetch('/dashboard/businesses', {
+            method: 'POST',
+            body: JSON.stringify(createPayload),
+          });
+          console.log('[BusinessSetup] Retry PATCH /dashboard/businesses/me payload:', updatePayload);
+          await apiFetch('/dashboard/businesses/me', {
+            method: 'PATCH',
+            body: JSON.stringify(updatePayload),
+          });
+
+          const meBusinessRaw = await apiFetch('/dashboard/businesses/me');
+          const mapped = toBusiness(meBusinessRaw);
+          setBusinessState(mapped);
+          setHasSetupComplete(Boolean(mapped.id || mapped.slug));
+          return true;
+        } catch (retryError) {
+          console.error('Failed to persist business profile (retry)', retryError);
+          return false;
+        }
+      }
       console.error('Failed to persist business profile', error);
       return false;
+    }
+  };
+
+  const dismissNotification = async (id: number) => {
+    try {
+      await apiFetch(`/dashboard/notifications/${id}/dismiss`, { method: 'PATCH' });
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    } catch (error) {
+      console.error('Failed to dismiss notification', error);
     }
   };
 
@@ -226,7 +344,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       name: a.name,
       description: a.description,
       priceAmount: a.price,
-      currency: a.currency || 'NGN',
       durationMinutes: a.duration,
     };
 
@@ -240,6 +357,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (created) {
           const mapped = toAppointment(created, a.businessId);
           setAppointments(prev => prev.map(p => (p.id === a.id ? { ...mapped, businessId: a.businessId || mapped.businessId } : p)));
+
+          try {
+            await apiFetch(`/dashboard/services/${mapped.id}/availability`, {
+              method: 'PATCH',
+              body: JSON.stringify({
+                daysOfWeek: a.availableDays,
+                startTimeLocal: a.startTime,
+                endTimeLocal: a.endTime,
+                timezone: getClientTimeZone(),
+              }),
+            });
+          } catch (error) {
+            console.error('Failed to save availability rules', error);
+          }
         }
       } catch (error) {
         console.error('Failed to create appointment in backend', error);
@@ -254,7 +385,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       name: a.name,
       description: a.description,
       priceAmount: a.price,
-      currency: a.currency || 'NGN',
       durationMinutes: a.duration,
     };
 
@@ -264,23 +394,55 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           method: 'PATCH',
           body: JSON.stringify(payload),
         });
+
+        try {
+          await apiFetch(`/dashboard/services/${a.id}/availability`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+              daysOfWeek: a.availableDays,
+              startTimeLocal: a.startTime,
+              endTimeLocal: a.endTime,
+              timezone: getClientTimeZone(),
+            }),
+          });
+        } catch (error) {
+          console.error('Failed to save availability rules', error);
+        }
       } catch (error) {
         console.error('Failed to update appointment in backend', error);
       }
     })();
   };
 
-  const deleteAppointment = (id: string) => {
+  const setAppointmentPaused = async (id: string, paused: boolean) => {
+    const previous = appointments;
+    setAppointments(prev => prev.map(p => (p.id === id ? { ...p, paused } : p)));
+    try {
+      await apiFetch(`/dashboard/services/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: paused ? 'INACTIVE' : 'ACTIVE' }),
+      });
+    } catch (error) {
+      setAppointments(previous);
+      console.error('Failed to update appointment status in backend', error);
+      throw error;
+    }
+  };
+
+  const deleteAppointment = async (id: string) => {
+    const previousAppointments = appointments;
+    const previousBookings = bookings;
     setAppointments(prev => prev.filter(p => p.id !== id));
     setBookings(prev => prev.filter(b => b.appointmentId !== id));
 
-    void (async () => {
-      try {
-        await apiFetch(`/dashboard/services/${id}`, { method: 'DELETE' });
-      } catch (error) {
-        console.error('Failed to delete appointment in backend', error);
-      }
-    })();
+    try {
+      await apiFetch(`/dashboard/services/${id}`, { method: 'DELETE' });
+    } catch (error) {
+      setAppointments(previousAppointments);
+      setBookings(previousBookings);
+      console.error('Failed to delete appointment in backend', error);
+      throw error;
+    }
   };
 
   const addBooking = (b: Booking) => {
@@ -337,10 +499,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     () => ({
       business,
       setBusiness,
+      notifications,
+      dismissNotification,
       appointments,
       addAppointment,
       updateAppointment,
       deleteAppointment,
+      setAppointmentPaused,
       bookings,
       addBooking,
       getBookingsForAppointment,
@@ -350,7 +515,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       businessLinkCreated,
       setBusinessLinkCreated,
     }),
-    [business, appointments, bookings, hasSetupComplete, businessLinkCreated]
+    [
+      business,
+      notifications,
+      appointments,
+      bookings,
+      hasSetupComplete,
+      businessLinkCreated,
+    ]
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

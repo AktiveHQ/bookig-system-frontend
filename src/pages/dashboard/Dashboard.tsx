@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import WelcomeBackNote from '@/components/shared/WelcomeBackNote';
-import { Plus, LogOut, ArrowRight, Copy, Link, Trash2 } from 'lucide-react';
+import { Plus, LogOut, ArrowRight, Copy, Link, Trash2, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format, isAfter, isSameDay, parseISO } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -14,7 +14,7 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const Dashboard = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { appointments, bookings, business, deleteAppointment } = useData();
+  const { appointments, bookings, business, deleteAppointment, notifications, dismissNotification } = useData();
   const { logout } = useAuth();
   const bookingLink =
     business?.slug && typeof window !== 'undefined'
@@ -43,7 +43,7 @@ const Dashboard = () => {
     }
   };
 
-  const handleDeleteAppointment = (appointmentId: string) => {
+  const handleDeleteAppointment = async (appointmentId: string) => {
     const hasFutureBookings = bookings.some(
       b =>
         b.appointmentId === appointmentId &&
@@ -60,13 +60,44 @@ const Dashboard = () => {
       return;
     }
 
-    deleteAppointment(appointmentId);
-    toast({ title: 'Appointment deleted' });
+    try {
+      await deleteAppointment(appointmentId);
+      toast({ title: 'Appointment deleted' });
+    } catch (error) {
+      toast({
+        title: 'Delete failed',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const activeNotification = notifications?.[0];
+  const notificationTone = (type: string) => {
+    if (type === 'success') return 'border-green-600/30 bg-green-600/10';
+    if (type === 'warning') return 'border-yellow-600/30 bg-yellow-600/10';
+    if (type === 'error') return 'border-red-600/30 bg-red-600/10';
+    return 'border-muted bg-accent/30';
   };
 
   if (isMobile) {
     return (
       <div className="min-h-screen flex flex-col px-6 py-6 max-w-2xl mx-auto">
+        {activeNotification && (
+          <div className={`mb-4 border rounded-2xl p-4 ${notificationTone(activeNotification.type)}`}>
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm">{activeNotification.message}</p>
+              <button
+                aria-label="Close notification"
+                className="p-1 rounded-full hover:bg-accent"
+                onClick={() => dismissNotification(activeNotification.id)}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">Appointments</h1>
@@ -173,6 +204,21 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col px-4 py-6 sm:px-6 lg:px-10 max-w-7xl mx-auto">
+      {activeNotification && (
+        <div className={`mb-4 border rounded-2xl p-4 ${notificationTone(activeNotification.type)}`}>
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm">{activeNotification.message}</p>
+            <button
+              aria-label="Close notification"
+              className="p-1 rounded-full hover:bg-accent"
+              onClick={() => dismissNotification(activeNotification.id)}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <WelcomeBackNote />
 
       <div className="flex items-center justify-between mb-6">

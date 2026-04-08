@@ -7,12 +7,25 @@ export interface Business {
   address: string;
   email: string;
   phone?: string;
-  bookingPageImage?: string;
+  headerImageUrl?: string | null;
+  idVerificationType?: 'NIN' | 'PASSPORT' | 'VOTERS_CARD' | null;
+  idDocumentData?: string | null;
+  cacDocumentData?: string | null;
+  verificationStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null;
+  verificationComment?: string | null;
   feeHandling: 'customer' | 'business';
   accountHolderName: string;
   bankName: string;
   accountNumber: string;
   slug: string;
+}
+
+export interface Notification {
+  id: number;
+  type: 'info' | 'success' | 'warning' | 'error';
+  message: string;
+  createdAt: string;
+  businessId?: number | null;
 }
 
 export interface Appointment {

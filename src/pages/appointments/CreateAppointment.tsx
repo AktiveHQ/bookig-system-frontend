@@ -20,6 +20,7 @@ const CreateAppointment = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { addAppointment, business, setBusinessLinkCreated, appointments } = useData();
+  const isApproved = business?.verificationStatus === 'APPROVED';
   const [step, setStep] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
 
@@ -62,6 +63,37 @@ const CreateAppointment = () => {
 
   const actualDuration = isCustomDuration ? Number(customDuration) || 30 : duration;
   const appointmentPrice = Number(price) || 0;
+
+  if (!business) {
+    return (
+      <div className="min-h-screen flex flex-col px-6 py-6 max-w-2xl mx-auto">
+        <BackButton onClick={() => navigate(-1)} />
+        <div className="flex-1 flex flex-col justify-center text-center space-y-4">
+          <p className="text-muted-foreground">Complete your business setup before creating appointments.</p>
+          <Button onClick={() => navigate('/setup')} className="h-12 rounded-full gap-2">
+            Complete setup <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isApproved) {
+    return (
+      <div className="min-h-screen flex flex-col px-6 py-6 max-w-2xl mx-auto">
+        <BackButton onClick={() => navigate('/dashboard')} />
+        <div className="flex-1 flex flex-col justify-center text-center space-y-3">
+          <p className="text-lg font-semibold">Pending approval</p>
+          <p className="text-muted-foreground">
+            Your business profile is being reviewed. Once approved, you can start creating appointments.
+          </p>
+          <Button onClick={() => navigate('/dashboard')} className="h-12 rounded-full gap-2">
+            Go to dashboard <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const maxBookingsPerDay = (() => {
     const [sh, sm] = startTime.split(':').map(Number);

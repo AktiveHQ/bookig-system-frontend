@@ -113,10 +113,15 @@ const BusinessPage = () => {
         if (!response.ok) throw new Error('Failed to load availability');
         const json = await response.json();
         const rawSlots = Array.isArray(json?.slots) ? json.slots : [];
-        const mapped = rawSlots.map((slot: any) => ({
-          time: String(slot?.startTimeLocal ?? slot?.time ?? ''),
-          available: Boolean(slot?.available ?? slot?.isAvailable ?? false),
-        }));
+        const mapped = rawSlots.map((slot: any) => {
+          if (typeof slot === 'string') {
+            return { time: slot, available: true };
+          }
+          return {
+            time: String(slot?.startTimeLocal ?? slot?.time ?? ''),
+            available: Boolean(slot?.available ?? slot?.isAvailable ?? true),
+          };
+        });
         if (active) setSlots(mapped.filter((s: AvailabilitySlot) => s.time));
       } catch (error) {
         console.error('Failed to load availability', error);
