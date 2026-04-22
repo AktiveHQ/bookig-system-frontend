@@ -207,7 +207,7 @@ const BusinessEdit = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col px-4 py-6 sm:px-6 max-w-2xl mx-auto">
+    <div className="min-h-screen flex flex-col px-4 py-6 sm:px-6 md:px-8 lg:px-10 max-w-2xl md:max-w-4xl lg:max-w-6xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <BackButton />
       </div>
@@ -219,203 +219,242 @@ const BusinessEdit = () => {
           <p className="text-sm text-muted-foreground mt-1">Update your business details and payouts</p>
         </div>
 
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Business Name</label>
-            <Input value={name} onChange={e => setName(e.target.value)} className="h-12 rounded-xl" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Description</label>
-            <Textarea value={description} onChange={e => setDescription(e.target.value)} className="rounded-xl min-h-[80px]" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Contact Email</label>
-            <Input type="email" value={email} onChange={e => setEmail(e.target.value)} className="h-12 rounded-xl" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Contact Phone (optional)</label>
-            <Input value={phone} onChange={e => setPhone(e.target.value)} className="h-12 rounded-xl" />
-          </div>
-        </div>
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="space-y-6">
+            <div className="border rounded-2xl p-5 space-y-4">
+              <div>
+                <p className="text-sm font-semibold">Business details</p>
+                <p className="text-xs text-muted-foreground mt-1">These details appear on your public booking page.</p>
+              </div>
 
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Country</label>
-            <Input value={country} disabled className="h-12 rounded-xl" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">City</label>
-            <Input value={city} onChange={e => setCity(e.target.value)} className="h-12 rounded-xl" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Business Address</label>
-            <Input value={address} onChange={e => setAddress(e.target.value)} className="h-12 rounded-xl" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Profile/Header image (optional)</label>
-            <div
-              className="border-2 border-dashed rounded-xl min-h-40 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-accent/50 transition-colors p-4"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {bookingImage ? (
-                <img
-                  src={bookingImage}
-                  alt="Booking page preview"
-                  className="h-28 w-28 rounded-xl object-cover border"
-                />
-              ) : (
-                <Upload className="h-8 w-8 text-muted-foreground" />
-              )}
-              <p className="text-sm text-muted-foreground text-center">
-                {bookingImage ? 'Tap to change image' : 'Upload profile/header image'}
-              </p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleImageUpload}
-              />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-sm font-medium">Business Name</label>
+                  <Input value={name} onChange={e => setName(e.target.value)} className="h-12 rounded-xl" />
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-sm font-medium">Description</label>
+                  <Textarea value={description} onChange={e => setDescription(e.target.value)} className="rounded-xl min-h-[96px]" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Contact Email</label>
+                  <Input type="email" value={email} onChange={e => setEmail(e.target.value)} className="h-12 rounded-xl" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Contact Phone (optional)</label>
+                  <Input value={phone} onChange={e => setPhone(e.target.value)} className="h-12 rounded-xl" />
+                </div>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              This is what users will see on your public booking page.
-            </p>
-            {bookingImage && (
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 rounded-full mt-2"
-                onClick={() => setBookingImage('')}
-              >
-                Remove image
-              </Button>
-            )}
-          </div>
 
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">ID Verification (select)</label>
-            <select
-              value={idVerificationType}
-              onChange={e => setIdVerificationType(e.target.value as any)}
-              className="h-12 rounded-xl border bg-background px-3 text-sm w-full"
-            >
-              <option value="">Select ID type</option>
-              <option value="NIN">NIN</option>
-              <option value="PASSPORT">Passport</option>
-              <option value="VOTERS_CARD">Voters card</option>
-            </select>
-            <p className="text-xs text-muted-foreground">
-              Choose the ID you want to use for verification.
-            </p>
-          </div>
+            <div className="border rounded-2xl p-5 space-y-4">
+              <div>
+                <p className="text-sm font-semibold">Location & profile</p>
+                <p className="text-xs text-muted-foreground mt-1">Used to help clients find you and recognize your page.</p>
+              </div>
 
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">ID Upload</label>
-            <div
-              className="border-2 border-dashed rounded-xl min-h-40 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-accent/50 transition-colors p-4"
-              onClick={() => idDocInputRef.current?.click()}
-            >
-              {idDocumentData ? (
-                renderDocPreview(idDocumentData, 'ID document')
-              ) : (
-                <Upload className="h-8 w-8 text-muted-foreground" />
-              )}
-              <p className="text-sm text-muted-foreground text-center">
-                {idDocumentData ? 'Tap to change document' : 'Upload identification document (image/PDF)'}
-              </p>
-              <input
-                ref={idDocInputRef}
-                type="file"
-                accept="image/*,application/pdf"
-                className="hidden"
-                onChange={e => handleDocUpload(e, setIdDocumentData)}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Upload a clear photo or PDF of the selected ID (max 5MB).
-            </p>
-            {idDocumentData && (
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 rounded-full mt-2"
-                onClick={() => setIdDocumentData('')}
-              >
-                Remove ID document
-              </Button>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Business Document (CAC)</label>
-            <div
-              className="border-2 border-dashed rounded-xl min-h-40 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-accent/50 transition-colors p-4"
-              onClick={() => cacDocInputRef.current?.click()}
-            >
-              {cacDocumentData ? (
-                renderDocPreview(cacDocumentData, 'CAC document')
-              ) : (
-                <Upload className="h-8 w-8 text-muted-foreground" />
-              )}
-              <p className="text-sm text-muted-foreground text-center">
-                {cacDocumentData ? 'Tap to change document' : 'Upload business document (image/PDF)'}
-              </p>
-              <input
-                ref={cacDocInputRef}
-                type="file"
-                accept="image/*,application/pdf"
-                className="hidden"
-                onChange={e => handleDocUpload(e, setCacDocumentData)}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Upload your CAC/business registration document (image or PDF, max 5MB).
-            </p>
-            {cacDocumentData && (
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 rounded-full mt-2"
-                onClick={() => setCacDocumentData('')}
-              >
-                Remove CAC document
-              </Button>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <p className="text-sm font-medium mb-2">Fee Handling</p>
-            <div className="space-y-2">
-              <div className="flex items-start gap-3 p-3 border rounded-xl bg-accent border-foreground">
-                <input type="radio" checked readOnly className="mt-1" />
-                <div>
-                  <p className="text-sm font-medium">Customer pays the fee</p>
-                  <p className="text-xs text-muted-foreground">The service fee/service charge is added on top of booking</p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Country</label>
+                  <Input value={country} disabled className="h-12 rounded-xl" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">City</label>
+                  <Input value={city} onChange={e => setCity(e.target.value)} className="h-12 rounded-xl" />
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-sm font-medium">Business Address</label>
+                  <Input value={address} onChange={e => setAddress(e.target.value)} className="h-12 rounded-xl" />
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-sm font-medium">Profile/Header image (optional)</label>
+                  <div
+                    className="border-2 border-dashed rounded-xl min-h-40 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-accent/50 transition-colors p-4"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {bookingImage ? (
+                      <img
+                        src={bookingImage}
+                        alt="Booking page preview"
+                        className="h-28 w-28 rounded-xl object-cover border"
+                      />
+                    ) : (
+                      <Upload className="h-8 w-8 text-muted-foreground" />
+                    )}
+                    <p className="text-sm text-muted-foreground text-center">
+                      {bookingImage ? 'Tap to change image' : 'Upload profile/header image'}
+                    </p>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    This is what users will see on your public booking page.
+                  </p>
+                  {bookingImage && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 rounded-full mt-2"
+                      onClick={() => setBookingImage('')}
+                    >
+                      Remove image
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
           </div>
 
-          <p className="text-sm font-semibold mt-2">Where should we send your money?</p>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Bank Name/Institution</label>
-            <Input value={bankName} onChange={e => setBankName(e.target.value)} className="h-12 rounded-xl" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Account Number</label>
-            <Input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} className="h-12 rounded-xl" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Account Holder Name</label>
-            <Input value={accountHolder} onChange={e => setAccountHolder(e.target.value)} className="h-12 rounded-xl" />
+          <div className="space-y-6">
+            <div className="border rounded-2xl p-5 space-y-4">
+              <div>
+                <p className="text-sm font-semibold">Verification documents</p>
+                <p className="text-xs text-muted-foreground mt-1">Upload clear documents so admin can approve your account.</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">ID Verification (select)</label>
+                  <select
+                    value={idVerificationType}
+                    onChange={e => setIdVerificationType(e.target.value as any)}
+                    className="h-12 rounded-xl border bg-background px-3 text-sm w-full"
+                  >
+                    <option value="">Select ID type</option>
+                    <option value="NIN">NIN</option>
+                    <option value="PASSPORT">Passport</option>
+                    <option value="VOTERS_CARD">Voters card</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Choose the ID you want to use for verification.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">ID Upload</label>
+                    <div
+                      className="border-2 border-dashed rounded-xl min-h-40 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-accent/50 transition-colors p-4"
+                      onClick={() => idDocInputRef.current?.click()}
+                    >
+                      {idDocumentData ? (
+                        renderDocPreview(idDocumentData, 'ID document')
+                      ) : (
+                        <Upload className="h-8 w-8 text-muted-foreground" />
+                      )}
+                      <p className="text-sm text-muted-foreground text-center">
+                        {idDocumentData ? 'Tap to change document' : 'Upload identification (image/PDF)'}
+                      </p>
+                      <input
+                        ref={idDocInputRef}
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="hidden"
+                        onChange={e => handleDocUpload(e, setIdDocumentData)}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Upload a clear photo or PDF (max 5MB).
+                    </p>
+                    {idDocumentData && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 rounded-full mt-2"
+                        onClick={() => setIdDocumentData('')}
+                      >
+                        Remove ID
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Business Document (CAC)</label>
+                    <div
+                      className="border-2 border-dashed rounded-xl min-h-40 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-accent/50 transition-colors p-4"
+                      onClick={() => cacDocInputRef.current?.click()}
+                    >
+                      {cacDocumentData ? (
+                        renderDocPreview(cacDocumentData, 'CAC document')
+                      ) : (
+                        <Upload className="h-8 w-8 text-muted-foreground" />
+                      )}
+                      <p className="text-sm text-muted-foreground text-center">
+                        {cacDocumentData ? 'Tap to change document' : 'Upload CAC (image/PDF)'}
+                      </p>
+                      <input
+                        ref={cacDocInputRef}
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="hidden"
+                        onChange={e => handleDocUpload(e, setCacDocumentData)}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Upload your CAC/registration document (max 5MB).
+                    </p>
+                    {cacDocumentData && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 rounded-full mt-2"
+                        onClick={() => setCacDocumentData('')}
+                      >
+                        Remove CAC
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="border rounded-2xl p-5 space-y-4">
+              <div>
+                <p className="text-sm font-semibold">Payout details</p>
+                <p className="text-xs text-muted-foreground mt-1">Where we should send money from successful bookings.</p>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium mb-2">Fee Handling</p>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-3 p-3 border rounded-xl bg-accent border-foreground">
+                    <input type="radio" checked readOnly className="mt-1" />
+                    <div>
+                      <p className="text-sm font-medium">Customer pays the fee</p>
+                      <p className="text-xs text-muted-foreground">The service fee/service charge is added on top of booking</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Bank Name/Institution</label>
+                  <Input value={bankName} onChange={e => setBankName(e.target.value)} className="h-12 rounded-xl" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Account Number</label>
+                  <Input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} className="h-12 rounded-xl" />
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-sm font-medium">Account Holder Name</label>
+                  <Input value={accountHolder} onChange={e => setAccountHolder(e.target.value)} className="h-12 rounded-xl" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <Button onClick={handleSave} className="w-full h-12 rounded-full gap-2">
-          Save changes <ArrowRight className="h-4 w-4" />
-        </Button>
+        <div className="pt-2 flex justify-end">
+          <Button onClick={handleSave} className="w-full md:w-auto h-12 rounded-full gap-2 md:px-10">
+            Save changes <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );
