@@ -8,7 +8,7 @@ import { CalendarIcon, Clock, ArrowRight } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const API_BASE = (
-  import.meta.env.VITE_API_BASE_URL || 'https://booking-system-backend-h7ho.onrender.com'
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
 ).replace(/\/$/, '');
 
 type BookingState = {
@@ -18,6 +18,31 @@ type BookingState = {
   appointmentCurrency?: string;
   date: string;
   time: string;
+};
+
+type ApiError = Error & { status?: number };
+
+const getResponseErrorMessage = async (response: Response, fallback: string) => {
+  try {
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const json = await response.json();
+      const message =
+        json?.message ||
+        json?.error ||
+        json?.details ||
+        json?.detail;
+      if (typeof message === 'string' && message.trim()) {
+        return message;
+      }
+    } else {
+      const text = await response.text();
+      if (text.trim()) return text.slice(0, 300);
+    }
+  } catch {
+    // ignore parse errors and use fallback
+  }
+  return fallback;
 };
 
 const BookingConfirmation = () => {
@@ -104,7 +129,13 @@ const BookingConfirmation = () => {
       });
 
       if (!bookingResponse.ok) {
-        throw new Error('Failed to create booking');
+        const message = await getResponseErrorMessage(
+          bookingResponse,
+          'Failed to create booking'
+        );
+        const apiError: ApiError = new Error(message);
+        apiError.status = bookingResponse.status;
+        throw apiError;
       }
 
       const bookingJson = await bookingResponse.json();
@@ -120,7 +151,13 @@ const BookingConfirmation = () => {
       );
 
       if (!paymentResponse.ok) {
-        throw new Error('Failed to initialize payment');
+        const message = await getResponseErrorMessage(
+          paymentResponse,
+          'Failed to initialize payment'
+        );
+        const apiError: ApiError = new Error(message);
+        apiError.status = paymentResponse.status;
+        throw apiError;
       }
 
       const paymentJson = await paymentResponse.json();
@@ -150,9 +187,21 @@ const BookingConfirmation = () => {
       window.location.href = authorizationUrl;
     } catch (error) {
       console.error(error);
+      const apiError = error as ApiError;
+      let title = 'Unable to continue payment';
+      let description = apiError?.message || 'Please try again.';
+
+      if (apiError?.status === 409) {
+        title = 'Slot no longer available';
+        description = apiError.message || 'That time was just taken. Please choose another slot.';
+      } else if (apiError?.status === 500) {
+        title = 'Payment initialization failed';
+        description = apiError.message || 'Server error while starting payment. Please try again.';
+      }
+
       toast({
-        title: 'Unable to continue payment',
-        description: 'Please try again.',
+        title,
+        description,
         variant: 'destructive',
       });
       setLoading(false);

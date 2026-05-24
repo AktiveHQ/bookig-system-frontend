@@ -8,7 +8,7 @@ import { clearAdminToken, getAdminAuthHeaderOrThrow } from '@/lib/admin-auth';
 import { toast } from '@/hooks/use-toast';
 
 const API_BASE = (
-  import.meta.env.VITE_API_BASE_URL || 'https://booking-system-backend-h7ho.onrender.com'
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
 ).replace(/\/$/, '');
 
 async function adminFetch(path: string, init?: RequestInit) {

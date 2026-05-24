@@ -14,7 +14,7 @@ const AdminLogin = () => {
   const [loading, setLoading] = useState(false);
 
   const API_BASE = (
-    import.meta.env.VITE_API_BASE_URL || 'https://booking-system-backend-h7ho.onrender.com'
+    import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
   ).replace(/\/$/, '');
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -31,7 +31,7 @@ const Welcome = () => {
     <div className="min-h-screen flex items-center justify-center px-6 py-12">
       <Card className="w-full max-w-md p-8">
         <div className="items-center text-center space-y-1">
-          <h2 className="text-5xl font-bold">Moments</h2>
+          <h2 className="text-5xl font-bold">Monack</h2>
           <h2>by</h2>
           <h2 className="text-md font-semibold">AktiveHq</h2>
         </div>
