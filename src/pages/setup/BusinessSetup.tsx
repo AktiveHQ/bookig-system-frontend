@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,11 +6,12 @@ import { Textarea } from '@/components/ui/textarea';
 import BackButton from '@/components/shared/BackButton';
 import ProgressBar from '@/components/shared/ProgressBar';
 import { useData } from '@/contexts/DataContext';
-import { ArrowRight, Upload } from 'lucide-react';
+import { ArrowRight, Loader2, Upload } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import WelcomeBackNote from '@/components/shared/WelcomeBackNote';
 
 const STEP_LABELS = ['4 easy steps!', 'Getting there!', 'Almost there!', 'Finish setup!'];
+const SETUP_TIMEOUT_SECONDS = 15 * 60;
 
 const BusinessSetup = () => {
   const navigate = useNavigate();
@@ -44,8 +45,52 @@ const BusinessSetup = () => {
   const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [saving, setSaving] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(SETUP_TIMEOUT_SECONDS);
+  const [isExpired, setIsExpired] = useState(false);
+
+  useEffect(() => {
+    if (isExpired) return;
+    const interval = setInterval(() => {
+      setSecondsLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setIsExpired(true);
+          toast({
+            title: 'Setup session expired',
+            description: 'For security, this form expires after 15 minutes. Tap "Start again" to continue.',
+            variant: 'destructive',
+          });
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isExpired]);
+
+  const resetSetupSession = () => {
+    setStep(0);
+    setTransitioning(false);
+    setName('');
+    setDescription('');
+    setEmail('');
+    setPhone('');
+    setCity('');
+    setAddress('');
+    setBookingImage('');
+    setIdVerificationType('');
+    setIdDocumentData('');
+    setCacDocumentData('');
+    setAccountHolder('');
+    setBankName('');
+    setAccountNumber('');
+    setSaving(false);
+    setSecondsLeft(SETUP_TIMEOUT_SECONDS);
+    setIsExpired(false);
+  };
 
   const goNext = () => {
+    if (isExpired) return;
     setTransitioning(true);
     setTimeout(() => {
       setStep(s => s + 1);
@@ -54,6 +99,7 @@ const BusinessSetup = () => {
   };
 
   const goBack = () => {
+    if (isExpired) return;
     if (step === 0) return;
     setTransitioning(true);
     setTimeout(() => {
@@ -63,6 +109,14 @@ const BusinessSetup = () => {
   };
 
   const handleFinish = async () => {
+    if (isExpired) {
+      toast({
+        title: 'Session expired',
+        description: 'Please start again and resubmit the form.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSaving(true);
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const businessPayload = {
@@ -76,20 +130,24 @@ const BusinessSetup = () => {
       slug,
     };
     console.log('[BusinessSetup] Finish setup payload:', businessPayload);
-    const ok = await setBusiness(businessPayload);
+    const result = await setBusiness(businessPayload);
     setSaving(false);
 
-    if (!ok) {
+    if (!result.ok) {
       toast({
         title: 'Setup failed',
-        description: 'We could not save your business profile. Please try again.',
+        description: result.message || 'We could not save your business profile. Please try again.',
         variant: 'destructive',
       });
       return;
     }
 
     setHasSetupComplete(true);
-    toast({ title: 'Business profile saved' });
+    toast({
+      title: 'Profile submitted',
+      description:
+        'Your account is now under review. We will notify you once verification is complete.',
+    });
     navigate('/dashboard');
   };
 
@@ -193,17 +251,39 @@ const BusinessSetup = () => {
     return null;
   };
 
+  const minutes = Math.floor(secondsLeft / 60)
+    .toString()
+    .padStart(2, '0');
+  const seconds = (secondsLeft % 60).toString().padStart(2, '0');
+
   return (
     <div className="min-h-screen flex flex-col px-4 py-6 sm:px-6 max-w-2xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <BackButton onClick={step > 0 ? goBack : undefined} />
       </div>
       <WelcomeBackNote />
+      <div className={`mb-4 rounded-xl border px-3 py-2 text-sm ${isExpired ? 'border-destructive text-destructive' : 'border-border text-muted-foreground'}`}>
+        {isExpired ? 'Session expired.' : `Session expires in ${minutes}:${seconds}`}
+        <Button type="button" variant="link" className="h-auto px-2 py-0 text-sm" onClick={resetSetupSession}>
+          Start again
+        </Button>
+      </div>
 
       <ProgressBar currentStep={step} totalSteps={4} labels={STEP_LABELS} />
 
       <div className={`flex-1 flex flex-col mt-8 transition-opacity duration-200 ${transitioning ? 'opacity-0' : 'opacity-100'}`}>
-        {step === 0 && (
+        {isExpired && (
+          <div className="border rounded-2xl p-5 space-y-3">
+            <h1 className="text-xl font-bold">Session expired</h1>
+            <p className="text-sm text-muted-foreground">
+              For security, setup sessions expire after 15 minutes. Start again to continue.
+            </p>
+            <Button onClick={resetSetupSession} className="h-12 rounded-full">
+              Start again
+            </Button>
+          </div>
+        )}
+        {!isExpired && step === 0 && (
           <div className="space-y-5 flex-1 flex flex-col">
             <h1 className="text-xl font-bold">Let's set up your business</h1>
             <div className="space-y-4 flex-1">
@@ -230,7 +310,7 @@ const BusinessSetup = () => {
           </div>
         )}
 
-        {step === 1 && (
+        {!isExpired && step === 1 && (
           <div className="space-y-5 flex-1 flex flex-col">
             <h1 className="text-xl font-bold">Where is your business located?</h1>
             <div className="space-y-4 flex-1">
@@ -253,7 +333,7 @@ const BusinessSetup = () => {
           </div>
         )}
 
-        {step === 2 && (
+        {!isExpired && step === 2 && (
           <div className="space-y-5 flex-1 flex flex-col">
             <h1 className="text-xl font-bold">Business information</h1>
             <div className="space-y-4 flex-1">
@@ -400,7 +480,7 @@ const BusinessSetup = () => {
           </div>
         )}
 
-        {step === 3 && (
+        {!isExpired && step === 3 && (
           <div className="space-y-5 flex-1 flex flex-col">
             <div>
               <h1 className="text-xl font-bold">How you want to get paid and where your money should go</h1>
@@ -435,7 +515,16 @@ const BusinessSetup = () => {
               </div>
             </div>
             <Button onClick={handleFinish} className="w-full h-12 rounded-full gap-2" disabled={!accountHolder || !accountNumber || saving}>
-              {saving ? 'Saving...' : 'Finish setup'} <ArrowRight className="h-4 w-4" />
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  Finish setup <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </Button>
           </div>
         )}

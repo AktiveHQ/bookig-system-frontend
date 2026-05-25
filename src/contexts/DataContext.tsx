@@ -5,7 +5,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 interface DataContextType {
   business: Business | null;
-  setBusiness: (b: Business) => Promise<boolean>;
+  setBusiness: (b: Business) => Promise<{ ok: boolean; message?: string }>;
   notifications: Notification[];
   dismissNotification: (id: number) => Promise<void>;
   appointments: Appointment[];
@@ -128,10 +128,29 @@ async function apiFetch(path: string, init?: RequestInit, authenticated = true) 
     Object.assign(headers, authHeader);
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeoutMs = 20_000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers,
+      signal: init?.signal ?? controller.signal,
+    });
+  } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      throw new Error(
+        'Request timed out after 20 seconds. Please check your internet and try again.',
+      );
+    }
+    throw new Error(
+      'Network error. We could not reach the server. Please check your internet connection and try again.',
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const contentType = response.headers.get('content-type') || '';
@@ -157,6 +176,39 @@ async function apiFetch(path: string, init?: RequestInit, authenticated = true) 
   }
   return response.json();
 }
+
+const getFriendlyErrorMessage = (error: unknown) => {
+  if (!(error instanceof Error)) {
+    return 'Something went wrong. Please try again.';
+  }
+
+  const message = error.message || '';
+  if (message.includes('Request timed out')) {
+    return 'Request timed out. Please try again. If this keeps happening, refresh and submit once more.';
+  }
+  if (message.includes('Network error')) {
+    return 'Unable to reach the server. Check your internet connection and try again.';
+  }
+  if (message.startsWith('API 401:')) {
+    return 'Your session may have expired. Please log in again and retry.';
+  }
+  if (message.startsWith('API 403:')) {
+    return 'You do not have permission for this action. Contact support if this is unexpected.';
+  }
+  if (message.startsWith('API 404:')) {
+    return 'We could not find your business profile. Please refresh and try again.';
+  }
+  if (message.startsWith('API 409:')) {
+    return 'A conflicting update was detected. Refresh the page and try again.';
+  }
+  if (message.startsWith('API 413:')) {
+    return 'The uploaded file is too large. Please reduce file size and try again.';
+  }
+  if (message.startsWith('API 500:')) {
+    return 'Server error while saving your profile. Please try again in a few minutes.';
+  }
+  return message.slice(0, 220);
+};
 
 const getClientTimeZone = () => {
   try {
@@ -303,7 +355,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return unsubscribe;
   }, []);
 
-  const setBusiness = async (b: Business): Promise<boolean> => {
+  const setBusiness = async (b: Business): Promise<{ ok: boolean; message?: string }> => {
     const hasPersistedBusinessId =
       Boolean(business?.id) && /^\d+$/.test(String(business?.id || ''));
 
@@ -364,7 +416,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error) {
         if (!isNotFoundError(error)) throw error;
       }
-      return true;
+      return { ok: true };
     } catch (error) {
       // If we hit a stale local state (no business in DB), retry by creating.
       if (isNotFoundError(error)) {
@@ -384,14 +436,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const mapped = toBusiness(meBusinessRaw);
           setBusinessState(mapped);
           setHasSetupComplete(Boolean(mapped.id || mapped.slug));
-          return true;
+          return { ok: true };
         } catch (retryError) {
           console.error('Failed to persist business profile (retry)', retryError);
-          return false;
+          return { ok: false, message: getFriendlyErrorMessage(retryError) };
         }
       }
       console.error('Failed to persist business profile', error);
-      return false;
+      return { ok: false, message: getFriendlyErrorMessage(error) };
     }
   };
 

@@ -11,6 +11,28 @@ import { useIsMobile } from '@/hooks/use-mobile';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+const getVerificationBadge = (status?: 'PENDING' | 'APPROVED' | 'REJECTED' | null) => {
+  if (status === 'APPROVED') {
+    return {
+      label: 'Approved',
+      classes: 'bg-green-600/15 text-green-700 border-green-600/30',
+      helper: 'Your business profile is approved.',
+    };
+  }
+  if (status === 'REJECTED') {
+    return {
+      label: 'Needs update',
+      classes: 'bg-red-600/15 text-red-700 border-red-600/30',
+      helper: 'Please update your submitted details and resubmit for review.',
+    };
+  }
+  return {
+    label: 'Under review',
+    classes: 'bg-yellow-600/15 text-yellow-700 border-yellow-600/30',
+    helper: 'Your business profile is being reviewed by the admin team.',
+  };
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -82,6 +104,7 @@ const Dashboard = () => {
   };
 
   const activeNotification = notifications?.[0];
+  const verificationBadge = getVerificationBadge(business?.verificationStatus);
   const notificationTone = (type: string) => {
     if (type === 'success') return 'border-green-600/30 bg-green-600/10';
     if (type === 'warning') return 'border-yellow-600/30 bg-yellow-600/10';
@@ -111,6 +134,14 @@ const Dashboard = () => {
           <div>
             <h1 className="text-2xl font-bold">Appointments</h1>
             <p className="text-sm text-muted-foreground">Manage your services and availability</p>
+            {business && (
+              <div className="mt-2 flex flex-col gap-1">
+                <span className={`inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-xs font-medium ${verificationBadge.classes}`}>
+                  {verificationBadge.label}
+                </span>
+                <p className="text-xs text-muted-foreground">{verificationBadge.helper}</p>
+              </div>
+            )}
           </div>
           <button onClick={handleLogout} className="p-2 rounded-full hover:bg-accent" aria-label="Logout">
             <LogOut className="h-5 w-5" />
@@ -236,6 +267,14 @@ const Dashboard = () => {
         <div>
           <h1 className="text-2xl font-bold">Appointments</h1>
           <p className="text-sm text-muted-foreground">Manage services, bookings, and links in one place</p>
+          {business && (
+            <div className="mt-2 flex flex-col gap-1">
+              <span className={`inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-xs font-medium ${verificationBadge.classes}`}>
+                {verificationBadge.label}
+              </span>
+              <p className="text-xs text-muted-foreground">{verificationBadge.helper}</p>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={() => navigate('/appointments/create')} className="h-10 rounded-full gap-2 hidden sm:inline-flex">

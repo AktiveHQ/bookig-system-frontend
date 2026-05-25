@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import BackButton from '@/components/shared/BackButton';
 import WelcomeBackNote from '@/components/shared/WelcomeBackNote';
 import { toast } from '@/hooks/use-toast';
-import { ArrowRight, Upload } from 'lucide-react';
+import { ArrowRight, Loader2, Upload } from 'lucide-react';
 
 const BusinessEdit = () => {
   const navigate = useNavigate();
@@ -28,6 +28,7 @@ const BusinessEdit = () => {
   const [accountHolder, setAccountHolder] = useState('');
   const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
+  const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const idDocInputRef = useRef<HTMLInputElement>(null);
   const cacDocInputRef = useRef<HTMLInputElement>(null);
@@ -60,7 +61,8 @@ const BusinessEdit = () => {
       return;
     }
 
-    const ok = await setBusiness({
+    setSaving(true);
+    const result = await setBusiness({
       ...business,
       name,
       description,
@@ -78,11 +80,12 @@ const BusinessEdit = () => {
       bankName,
       accountNumber,
     });
+    setSaving(false);
 
-    if (!ok) {
+    if (!result.ok) {
       toast({
         title: 'Update failed',
-        description: 'We could not save your business profile. Please try again.',
+        description: result.message || 'We could not save your business profile. Please try again.',
         variant: 'destructive',
       });
       return;
@@ -451,8 +454,17 @@ const BusinessEdit = () => {
         </div>
 
         <div className="pt-2 flex justify-end">
-          <Button onClick={handleSave} className="w-full md:w-auto h-12 rounded-full gap-2 md:px-10">
-            Save changes <ArrowRight className="h-4 w-4" />
+          <Button onClick={handleSave} disabled={saving} className="w-full md:w-auto h-12 rounded-full gap-2 md:px-10">
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                Save changes <ArrowRight className="h-4 w-4" />
+              </>
+            )}
           </Button>
         </div>
       </div>
