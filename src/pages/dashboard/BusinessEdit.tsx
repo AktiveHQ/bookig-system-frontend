@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,10 @@ import BankSelect from '@/components/shared/BankSelect';
 import WelcomeBackNote from '@/components/shared/WelcomeBackNote';
 import { toast } from '@/hooks/use-toast';
 import { ArrowRight, Loader2, Upload } from 'lucide-react';
+
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
+).trim().replace(/\/$/, '');
 
 const BusinessEdit = () => {
   const navigate = useNavigate();
@@ -28,7 +32,9 @@ const BusinessEdit = () => {
   const feeHandling: 'customer' | 'business' = 'customer';
   const [accountHolder, setAccountHolder] = useState('');
   const [bankName, setBankName] = useState('');
+  const [bankCode, setBankCode] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
+  const [resolvingAccount, setResolvingAccount] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const idDocInputRef = useRef<HTMLInputElement>(null);
@@ -50,6 +56,54 @@ const BusinessEdit = () => {
     setBankName(business.bankName);
     setAccountNumber(business.accountNumber);
   }, [business]);
+
+  const handleBankSelect = useCallback((bank: { code: string }) => {
+    setBankCode(bank.code);
+  }, []);
+
+  useEffect(() => {
+    const normalizedAccountNumber = accountNumber.replace(/\D/g, '');
+    if (!bankCode || normalizedAccountNumber.length !== 10) {
+      return;
+    }
+
+    let isActive = true;
+    const timeoutId = window.setTimeout(async () => {
+      setResolvingAccount(true);
+      try {
+        const response = await fetch(
+          `${API_BASE}/public/paystack/resolve-account?accountNumber=${encodeURIComponent(normalizedAccountNumber)}&bankCode=${encodeURIComponent(bankCode)}`,
+        );
+
+        if (!response.ok) {
+          throw new Error('Unable to verify account number');
+        }
+
+        const data = await response.json();
+        if (isActive && data?.accountName) {
+          setAccountHolder(String(data.accountName));
+        }
+      } catch (error) {
+        console.error('[BusinessEdit] Failed to verify account:', error);
+        if (isActive) {
+          toast({
+            title: 'Account verification failed',
+            description: 'Check the bank and account number, then try again.',
+            variant: 'destructive',
+          });
+        }
+      } finally {
+        if (isActive) {
+          setResolvingAccount(false);
+        }
+      }
+    }, 500);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [accountNumber, bankCode]);
 
   const handleSave = async () => {
     if (!business) return;
@@ -439,15 +493,24 @@ const BusinessEdit = () => {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">Bank Name/Institution</label>
-                  <BankSelect value={bankName} onChange={setBankName} />
+                  <BankSelect value={bankName} onChange={setBankName} onBankSelect={handleBankSelect} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">Account Number</label>
-                  <Input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} className="h-12 rounded-xl" />
+                  <Input
+                    value={accountNumber}
+                    onChange={e => setAccountNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    className="h-12 rounded-xl"
+                    inputMode="numeric"
+                    maxLength={10}
+                  />
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
                   <label className="text-sm font-medium">Account Holder Name</label>
                   <Input value={accountHolder} onChange={e => setAccountHolder(e.target.value)} className="h-12 rounded-xl" />
+                  {resolvingAccount && (
+                    <p className="text-xs text-muted-foreground">Verifying account name...</p>
+                  )}
                 </div>
               </div>
             </div>

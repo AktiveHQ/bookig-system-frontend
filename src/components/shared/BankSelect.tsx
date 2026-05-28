@@ -15,9 +15,10 @@ type Bank = {
 type BankSelectProps = {
   value: string;
   onChange: (bankName: string) => void;
+  onBankSelect?: (bank: Bank) => void;
 };
 
-const BankSelect = ({ value, onChange }: BankSelectProps) => {
+const BankSelect = ({ value, onChange, onBankSelect }: BankSelectProps) => {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [search, setSearch] = useState(value);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -26,6 +27,13 @@ const BankSelect = ({ value, onChange }: BankSelectProps) => {
   useEffect(() => {
     setSearch(value);
   }, [value]);
+
+  useEffect(() => {
+    const selectedBank = banks.find(bank => bank.name === value);
+    if (selectedBank) {
+      onBankSelect?.(selectedBank);
+    }
+  }, [banks, onBankSelect, value]);
 
   useEffect(() => {
     let isMounted = true;
@@ -78,6 +86,7 @@ const BankSelect = ({ value, onChange }: BankSelectProps) => {
 
   const handleSelect = (bank: Bank) => {
     onChange(bank.name);
+    onBankSelect?.(bank);
     setSearch(bank.name);
     setShowDropdown(false);
   };

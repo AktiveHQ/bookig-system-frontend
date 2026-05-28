@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,9 @@ import WelcomeBackNote from '@/components/shared/WelcomeBackNote';
 
 const STEP_LABELS = ['4 easy steps!', 'Getting there!', 'Almost there!', 'Finish setup!'];
 const SETUP_TIMEOUT_SECONDS = 15 * 60;
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
+).trim().replace(/\/$/, '');
 
 const BusinessSetup = () => {
   const navigate = useNavigate();
@@ -44,7 +47,9 @@ const BusinessSetup = () => {
   const feeHandling: 'customer' | 'business' = 'customer';
   const [accountHolder, setAccountHolder] = useState('');
   const [bankName, setBankName] = useState('');
+  const [bankCode, setBankCode] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
+  const [resolvingAccount, setResolvingAccount] = useState(false);
   const [saving, setSaving] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(SETUP_TIMEOUT_SECONDS);
   const [isExpired, setIsExpired] = useState(false);
@@ -84,11 +89,60 @@ const BusinessSetup = () => {
     setCacDocumentData('');
     setAccountHolder('');
     setBankName('');
+    setBankCode('');
     setAccountNumber('');
     setSaving(false);
     setSecondsLeft(SETUP_TIMEOUT_SECONDS);
     setIsExpired(false);
   };
+
+  const handleBankSelect = useCallback((bank: { code: string }) => {
+    setBankCode(bank.code);
+  }, []);
+
+  useEffect(() => {
+    const normalizedAccountNumber = accountNumber.replace(/\D/g, '');
+    if (!bankCode || normalizedAccountNumber.length !== 10) {
+      return;
+    }
+
+    let isActive = true;
+    const timeoutId = window.setTimeout(async () => {
+      setResolvingAccount(true);
+      try {
+        const response = await fetch(
+          `${API_BASE}/public/paystack/resolve-account?accountNumber=${encodeURIComponent(normalizedAccountNumber)}&bankCode=${encodeURIComponent(bankCode)}`,
+        );
+
+        if (!response.ok) {
+          throw new Error('Unable to verify account number');
+        }
+
+        const data = await response.json();
+        if (isActive && data?.accountName) {
+          setAccountHolder(String(data.accountName));
+        }
+      } catch (error) {
+        console.error('[BusinessSetup] Failed to verify account:', error);
+        if (isActive) {
+          toast({
+            title: 'Account verification failed',
+            description: 'Check the bank and account number, then try again.',
+            variant: 'destructive',
+          });
+        }
+      } finally {
+        if (isActive) {
+          setResolvingAccount(false);
+        }
+      }
+    }, 500);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [accountNumber, bankCode]);
 
   const goNext = () => {
     if (isExpired) return;
@@ -504,15 +558,24 @@ const BusinessSetup = () => {
               <p className="text-sm font-semibold mt-4">Where should we send your money?</p>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Bank Name/Institution</label>
-                <BankSelect value={bankName} onChange={setBankName} />
+                <BankSelect value={bankName} onChange={setBankName} onBankSelect={handleBankSelect} />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Account Number</label>
-                <Input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} className="h-12 rounded-xl" />
+                <Input
+                  value={accountNumber}
+                  onChange={e => setAccountNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  className="h-12 rounded-xl"
+                  inputMode="numeric"
+                  maxLength={10}
+                />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Account Holder Name</label>
                 <Input value={accountHolder} onChange={e => setAccountHolder(e.target.value)} className="h-12 rounded-xl" />
+                {resolvingAccount && (
+                  <p className="text-xs text-muted-foreground">Verifying account name...</p>
+                )}
               </div>
             </div>
             <Button onClick={handleFinish} className="w-full h-12 rounded-full gap-2" disabled={!accountHolder || !accountNumber || saving}>
