@@ -17,6 +17,19 @@ const API_BASE = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
 ).trim().replace(/\/$/, '');
 
+const getResponseErrorMessage = async (response: Response, fallback: string) => {
+  try {
+    const data = await response.json();
+    const message = data?.message || data?.error;
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+  } catch {
+    // Use fallback.
+  }
+  return fallback;
+};
+
 const BusinessSetup = () => {
   const navigate = useNavigate();
   const { setBusiness, setHasSetupComplete } = useData();
@@ -122,7 +135,9 @@ const BusinessSetup = () => {
         );
 
         if (!response.ok) {
-          throw new Error('Unable to verify account number');
+          throw new Error(
+            await getResponseErrorMessage(response, 'Unable to verify account number')
+          );
         }
 
         const data = await response.json();
@@ -134,7 +149,10 @@ const BusinessSetup = () => {
         if (isActive) {
           toast({
             title: 'Account verification failed',
-            description: 'Check the bank and account number, then try again.',
+            description:
+              error instanceof Error
+                ? error.message
+                : 'Check the bank and account number, then try again.',
             variant: 'destructive',
           });
         }
