@@ -1,4 +1,130 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+
+// --- BankSelect component ---
+type Bank = { id: number; name: string; code: string };
+
+const BankSelect = ({ value, onChange }: { value: string; onChange: (bankName: string) => void }) => {
+  const [banks, setBanks] = useState<Bank[]>([]);
+  const [search, setSearch] = useState('');
+  const [filteredBanks, setFilteredBanks] = useState<Bank[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/paystack/banks')
+      .then(res => res.json())
+      .then(data => setBanks(data.data || []));
+  }, []);
+
+  useEffect(() => {
+    setFilteredBanks(
+      banks.filter(bank =>
+        bank.name.toLowerCase().includes(search.toLowerCase())
+      )
+    );
+  }, [search, banks]);
+
+  const handleSelect = (bank: Bank) => {
+    onChange(bank.name);
+    setSearch(bank.name);
+    setShowDropdown(false);
+  };
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <Input
+        type="text"
+        placeholder="Search bank"
+        value={search || value}
+        onChange={e => {
+          setSearch(e.target.value);
+          setShowDropdown(true);
+        }}
+        onFocus={() => setShowDropdown(true)}
+        className="h-12 rounded-xl"
+        autoComplete="off"
+      />
+      {showDropdown && filteredBanks.length > 0 && (
+        <ul
+          style={{
+            position: 'absolute',
+            zIndex: 10,
+            background: 'white',
+            border: '1px solid #eee',
+            width: '100%',
+            maxHeight: 200,
+            overflowY: 'auto',
+            borderRadius: 8,
+            marginTop: 2,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+          }}
+        >
+          {filteredBanks.map(bank => (
+            <li
+              key={bank.id}
+              style={{ padding: '8px 12px', cursor: 'pointer' }}
+              onClick={() => handleSelect(bank)}
+              onMouseDown={e => e.preventDefault()}
+            >
+              {bank.name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+// In booking-system-backend/src/modules/paystack/paystack.controller.ts
+import { Controller, Get } from '@nestjs/common';
+import axios from 'axios';
+
+@Controller('paystack')
+export class PaystackController {
+  @Get('banks')
+  async getBanks() {
+    const response = await axios.get('https://api.paystack.co/bank', {
+      headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
+    });
+    return response.data;
+  }
+}import React, { useState, useEffect } from 'react';
+
+const BankSelect = () => {
+  const [banks, setBanks] = useState([]);
+  const [search, setSearch] = useState('');
+  const [filteredBanks, setFilteredBanks] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/paystack/banks')
+      .then(res => res.json())
+      .then(data => setBanks(data.data || []));
+  }, []);
+
+  useEffect(() => {
+    setFilteredBanks(
+      banks.filter(bank =>
+        bank.name.toLowerCase().includes(search.toLowerCase())
+      )
+    );
+  }, [search, banks]);
+
+  return (
+    <div>
+      <input
+        type="text"
+        placeholder="Search bank"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+      />
+      <ul>
+        {filteredBanks.map(bank => (
+          <li key={bank.id}>{bank.name}</li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+export default BankSelect;import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/button';
@@ -438,7 +564,7 @@ const BusinessEdit = () => {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">Bank Name/Institution</label>
-                  <Input value={bankName} onChange={e => setBankName(e.target.value)} className="h-12 rounded-xl" />
+                  <BankSelect value={bankName} onChange={setBankName} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">Account Number</label>

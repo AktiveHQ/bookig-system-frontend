@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import BankSelect from '../dashboard/BusinessEdit';
 import { Textarea } from '@/components/ui/textarea';
 import BackButton from '@/components/shared/BackButton';
 import ProgressBar from '@/components/shared/ProgressBar';
@@ -503,7 +504,7 @@ const BusinessSetup = () => {
               <p className="text-sm font-semibold mt-4">Where should we send your money?</p>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Bank Name/Institution</label>
-                <Input value={bankName} onChange={e => setBankName(e.target.value)} className="h-12 rounded-xl" />
+                <BankSelect value={bankName} onChange={setBankName} />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Account Number</label>
