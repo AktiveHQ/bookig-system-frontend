@@ -190,7 +190,12 @@ const BusinessPage = () => {
         </div>
       </div>
 
-      <h2 className="text-lg font-semibold mb-4 lg:text-xl">Book an appointment</h2>
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold lg:text-xl">Book Your Appointment in Minutes</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Choose your preferred service, pick a convenient time, and confirm your booking instantly.
+        </p>
+      </div>
 
       <div className="space-y-3 lg:space-y-4">
         {services.map(service => (

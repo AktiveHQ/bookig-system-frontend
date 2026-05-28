@@ -27,9 +27,9 @@ const BookingConfirmed = () => {
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="max-w-md text-center">
           <CheckCircle className="mx-auto h-12 w-12 text-green-600" />
-          <h1 className="mt-4 text-2xl font-bold">Payment received</h1>
+          <h1 className="mt-4 text-2xl font-bold">Booking Confirmed</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Your booking is being confirmed. A confirmation will be sent to your email.
+            Your appointment has been successfully scheduled. A confirmation email with your booking details has been sent to your inbox.
           </p>
           {reference && (
             <p className="mt-3 text-xs text-muted-foreground">
@@ -49,7 +49,7 @@ const BookingConfirmed = () => {
       <BackButton onClick={() => navigate('/')} />
 
       <div className="flex-1 flex flex-col items-center justify-center text-center">
-        <h1 className="text-2xl font-bold mb-2">Booking confirmed!</h1>
+        <h1 className="text-2xl font-bold mb-2">Booking Confirmed</h1>
 
         <div className="border rounded-2xl p-5 w-full space-y-3 mt-6 text-left lg:p-6">
           <h3 className="font-semibold">{state.appointmentName}</h3>
@@ -66,7 +66,7 @@ const BookingConfirmed = () => {
         <CheckCircle className="h-12 w-12 text-green-600 mt-6" />
 
         <p className="text-sm text-muted-foreground mt-4">
-          A confirmation has been sent to your email.
+          Your appointment has been successfully scheduled. A confirmation email with your booking details has been sent to your inbox.
         </p>
 
         <div className="w-full grid gap-3 mt-8 sm:grid-cols-2">

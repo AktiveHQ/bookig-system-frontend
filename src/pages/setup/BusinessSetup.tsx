@@ -365,7 +365,12 @@ const BusinessSetup = () => {
         )}
         {!isExpired && step === 0 && (
           <div className="space-y-5 flex-1 flex flex-col">
-            <h1 className="text-xl font-bold">Let's set up your business</h1>
+            <div>
+              <h1 className="text-xl font-bold">Let's Set Up Your Booking System</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Create your business profile, configure your availability, and start accepting bookings online.
+              </p>
+            </div>
             <div className="space-y-4 flex-1">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Business Name</label>
@@ -385,7 +390,7 @@ const BusinessSetup = () => {
               </div>
             </div>
             <Button onClick={goNext} className="w-full h-12 rounded-full gap-2" disabled={!name || !email}>
-              Next <ArrowRight className="h-4 w-4" />
+              Get Started <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         )}
