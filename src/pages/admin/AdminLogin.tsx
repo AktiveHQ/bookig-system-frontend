@@ -15,7 +15,7 @@ const AdminLogin = () => {
 
   const API_BASE = (
     import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
-  ).replace(/\/$/, '');
+  ).trim().replace(/\/$/, '');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +90,13 @@ const AdminLogin = () => {
               <ArrowRight className="h-4 w-4" />
             </Button>
           </form>
+
+          <p className="text-center text-xs text-muted-foreground">
+            Need an admin account?{' '}
+            <button onClick={() => navigate('/admin/create')} className="underline">
+              Create one
+            </button>
+          </p>
 
           <p className="text-center text-xs text-muted-foreground">
             Not an admin?{' '}

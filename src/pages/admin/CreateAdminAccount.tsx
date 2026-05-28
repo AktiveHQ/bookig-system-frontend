@@ -8,7 +8,7 @@ import { getAdminAuthHeaderOrThrow } from '@/lib/admin-auth';
 
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
-).replace(/\/$/, '');
+).trim().replace(/\/$/, '');
 
 async function adminFetch(path: string, init?: RequestInit) {
   const authHeader = getAdminAuthHeaderOrThrow();
@@ -38,8 +38,29 @@ const CreateAdminAccount = () => {
   const [bootstrapKey, setBootstrapKey] = useState('');
   const [bootstrapping, setBootstrapping] = useState(false);
 
+  const validateAdminForm = () => {
+    if (!createFullName.trim()) {
+      toast({ title: 'Full name is required', variant: 'destructive' });
+      return false;
+    }
+    if (!createEmail.trim()) {
+      toast({ title: 'Email is required', variant: 'destructive' });
+      return false;
+    }
+    if (!createPassword || createPassword.length < 8) {
+      toast({
+        title: 'Password is too short',
+        description: 'Use at least 8 characters.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+    return true;
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateAdminForm()) return;
     setCreating(true);
     try {
       await adminFetch('/admin/admin-users', {
@@ -71,6 +92,12 @@ const CreateAdminAccount = () => {
 
   const handleBootstrap = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateAdminForm()) return;
+    if (!bootstrapKey.trim()) {
+      toast({ title: 'Bootstrap key is required', variant: 'destructive' });
+      return;
+    }
+
     setBootstrapping(true);
     try {
       const response = await fetch(`${API_BASE}/admin/auth/bootstrap-create`, {
@@ -86,6 +113,12 @@ const CreateAdminAccount = () => {
         }),
       });
       const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = Array.isArray(json?.message)
+          ? json.message.join(', ')
+          : json?.message;
+        throw new Error(message || `Bootstrap failed with ${response.status}`);
+      }
       if (!json?.ok || !json?.token) {
         throw new Error(json?.message || 'Bootstrap failed');
       }
@@ -115,12 +148,15 @@ const CreateAdminAccount = () => {
         <div>
           <h1 className="text-2xl font-bold">Create admin account</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Create a new admin or promote an existing user.
+            Bootstrap the first admin, or create another admin after signing in.
           </p>
         </div>
 
         <div className="border rounded-2xl p-4">
           <h2 className="text-sm font-semibold mb-3">Create new admin</h2>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Use this after an admin is already logged in.
+          </p>
           <form onSubmit={handleCreate} className="space-y-3">
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Full name</label>
@@ -167,6 +203,7 @@ const CreateAdminAccount = () => {
               />
               <p className="text-xs text-muted-foreground">
                 Use this only once to create the very first admin on a fresh database.
+                After the first admin exists, bootstrap is disabled.
               </p>
             </div>
             <Button type="submit" variant="outline" className="w-full h-12 rounded-full" disabled={bootstrapping}>

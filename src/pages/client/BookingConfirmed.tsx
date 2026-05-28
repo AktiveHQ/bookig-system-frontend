@@ -13,6 +13,7 @@ const BookingConfirmed = () => {
     time: string;
     total: number;
   } | null;
+  const reference = new URLSearchParams(location.search).get('reference');
 
   const formatTime = (t: string) => {
     const [h, m] = t.split(':').map(Number);
@@ -24,7 +25,21 @@ const BookingConfirmed = () => {
   if (!state) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
-        <p className="text-muted-foreground">No booking information.</p>
+        <div className="max-w-md text-center">
+          <CheckCircle className="mx-auto h-12 w-12 text-green-600" />
+          <h1 className="mt-4 text-2xl font-bold">Payment received</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Your booking is being confirmed. A confirmation will be sent to your email.
+          </p>
+          {reference && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Reference: <span className="font-mono">{reference}</span>
+            </p>
+          )}
+          <Button className="mt-6 h-12 rounded-full px-8" onClick={() => navigate('/')}>
+            Done
+          </Button>
+        </div>
       </div>
     );
   }
