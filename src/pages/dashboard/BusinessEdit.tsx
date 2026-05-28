@@ -57,6 +57,11 @@ const BusinessEdit = () => {
     setAccountNumber(business.accountNumber);
   }, [business]);
 
+  const handleBankInputChange = useCallback(() => {
+    setBankCode('');
+    setAccountHolder('');
+  }, []);
+
   const handleBankSelect = useCallback((bank: { code: string }) => {
     setBankCode(bank.code);
   }, []);
@@ -64,12 +69,14 @@ const BusinessEdit = () => {
   useEffect(() => {
     const normalizedAccountNumber = accountNumber.replace(/\D/g, '');
     if (!bankCode || normalizedAccountNumber.length !== 10) {
+      setResolvingAccount(false);
       return;
     }
 
     let isActive = true;
     const timeoutId = window.setTimeout(async () => {
       setResolvingAccount(true);
+      setAccountHolder('');
       try {
         const response = await fetch(
           `${API_BASE}/public/paystack/resolve-account?accountNumber=${encodeURIComponent(normalizedAccountNumber)}&bankCode=${encodeURIComponent(bankCode)}`,
@@ -493,7 +500,12 @@ const BusinessEdit = () => {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">Bank Name/Institution</label>
-                  <BankSelect value={bankName} onChange={setBankName} onBankSelect={handleBankSelect} />
+                  <BankSelect
+                    value={bankName}
+                    onChange={setBankName}
+                    onBankInputChange={handleBankInputChange}
+                    onBankSelect={handleBankSelect}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">Account Number</label>
@@ -507,7 +519,12 @@ const BusinessEdit = () => {
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
                   <label className="text-sm font-medium">Account Holder Name</label>
-                  <Input value={accountHolder} onChange={e => setAccountHolder(e.target.value)} className="h-12 rounded-xl" />
+                  <Input
+                    value={resolvingAccount ? 'Verifying account name...' : accountHolder}
+                    onChange={e => setAccountHolder(e.target.value)}
+                    className="h-12 rounded-xl"
+                    readOnly={resolvingAccount}
+                  />
                   {resolvingAccount && (
                     <p className="text-xs text-muted-foreground">Verifying account name...</p>
                   )}
@@ -518,7 +535,7 @@ const BusinessEdit = () => {
         </div>
 
         <div className="pt-2 flex justify-end">
-          <Button onClick={handleSave} disabled={saving} className="w-full md:w-auto h-12 rounded-full gap-2 md:px-10">
+          <Button onClick={handleSave} disabled={saving || resolvingAccount} className="w-full md:w-auto h-12 rounded-full gap-2 md:px-10">
             {saving ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />

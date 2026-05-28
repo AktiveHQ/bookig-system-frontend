@@ -16,9 +16,10 @@ type BankSelectProps = {
   value: string;
   onChange: (bankName: string) => void;
   onBankSelect?: (bank: Bank) => void;
+  onBankInputChange?: () => void;
 };
 
-const BankSelect = ({ value, onChange, onBankSelect }: BankSelectProps) => {
+const BankSelect = ({ value, onChange, onBankSelect, onBankInputChange }: BankSelectProps) => {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [search, setSearch] = useState(value);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -100,6 +101,7 @@ const BankSelect = ({ value, onChange, onBankSelect }: BankSelectProps) => {
         onChange={event => {
           setSearch(event.target.value);
           onChange(event.target.value);
+          onBankInputChange?.();
           setShowDropdown(true);
         }}
         onFocus={() => setShowDropdown(true)}

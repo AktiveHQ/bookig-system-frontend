@@ -96,6 +96,11 @@ const BusinessSetup = () => {
     setIsExpired(false);
   };
 
+  const handleBankInputChange = useCallback(() => {
+    setBankCode('');
+    setAccountHolder('');
+  }, []);
+
   const handleBankSelect = useCallback((bank: { code: string }) => {
     setBankCode(bank.code);
   }, []);
@@ -103,12 +108,14 @@ const BusinessSetup = () => {
   useEffect(() => {
     const normalizedAccountNumber = accountNumber.replace(/\D/g, '');
     if (!bankCode || normalizedAccountNumber.length !== 10) {
+      setResolvingAccount(false);
       return;
     }
 
     let isActive = true;
     const timeoutId = window.setTimeout(async () => {
       setResolvingAccount(true);
+      setAccountHolder('');
       try {
         const response = await fetch(
           `${API_BASE}/public/paystack/resolve-account?accountNumber=${encodeURIComponent(normalizedAccountNumber)}&bankCode=${encodeURIComponent(bankCode)}`,
@@ -558,7 +565,12 @@ const BusinessSetup = () => {
               <p className="text-sm font-semibold mt-4">Where should we send your money?</p>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Bank Name/Institution</label>
-                <BankSelect value={bankName} onChange={setBankName} onBankSelect={handleBankSelect} />
+                <BankSelect
+                  value={bankName}
+                  onChange={setBankName}
+                  onBankInputChange={handleBankInputChange}
+                  onBankSelect={handleBankSelect}
+                />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Account Number</label>
@@ -572,13 +584,18 @@ const BusinessSetup = () => {
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Account Holder Name</label>
-                <Input value={accountHolder} onChange={e => setAccountHolder(e.target.value)} className="h-12 rounded-xl" />
+                <Input
+                  value={resolvingAccount ? 'Verifying account name...' : accountHolder}
+                  onChange={e => setAccountHolder(e.target.value)}
+                  className="h-12 rounded-xl"
+                  readOnly={resolvingAccount}
+                />
                 {resolvingAccount && (
                   <p className="text-xs text-muted-foreground">Verifying account name...</p>
                 )}
               </div>
             </div>
-            <Button onClick={handleFinish} className="w-full h-12 rounded-full gap-2" disabled={!accountHolder || !accountNumber || saving}>
+            <Button onClick={handleFinish} className="w-full h-12 rounded-full gap-2" disabled={!accountHolder || !accountNumber || resolvingAccount || saving}>
               {saving ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
