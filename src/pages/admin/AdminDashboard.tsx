@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { BarChart3, BriefcaseBusiness, CalendarCheck, CircleDollarSign } from 'lucide-react';
+import BackButton from '@/components/shared/BackButton';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import BackButton from '@/components/shared/BackButton';
 import { clearAdminToken, getAdminAuthHeaderOrThrow } from '@/lib/admin-auth';
 import { toast } from '@/hooks/use-toast';
 
@@ -31,6 +32,18 @@ async function adminFetch(path: string, init?: RequestInit) {
   return response.json();
 }
 
+type VendorStats = {
+  totalBookings: number;
+  confirmedBookings: number;
+  pendingBookings: number;
+  totalServices: number;
+  activeServices: number;
+  totalEarnings: number;
+  grossPayments: number;
+  platformFees: number;
+  currency: string;
+};
+
 type AdminBusinessSummary = {
   id: number;
   ownerId: number;
@@ -45,6 +58,7 @@ type AdminBusinessSummary = {
   verificationReviewedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  stats?: VendorStats;
 };
 
 const statusPill = (status: AdminBusinessSummary['verificationStatus']) => {
@@ -84,16 +98,39 @@ const AdminDashboard = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [navigate]);
 
   const pendingCount = useMemo(
     () => rows.filter(r => r.verificationStatus === 'PENDING').length,
     [rows]
   );
 
+  const totals = useMemo(
+    () =>
+      rows.reduce(
+        (acc, row) => {
+          const stats = row.stats;
+          acc.totalBusinesses += 1;
+          acc.totalBookings += Number(stats?.totalBookings ?? 0);
+          acc.totalServices += Number(stats?.totalServices ?? 0);
+          acc.totalEarnings += Number(stats?.totalEarnings ?? 0);
+          acc.currency = stats?.currency || acc.currency;
+          return acc;
+        },
+        {
+          totalBusinesses: 0,
+          totalBookings: 0,
+          totalServices: 0,
+          totalEarnings: 0,
+          currency: 'NGN',
+        }
+      ),
+    [rows]
+  );
+
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col px-6 py-6 max-w-5xl mx-auto">
+      <div className="min-h-screen flex flex-col px-6 py-6 max-w-6xl mx-auto">
         <BackButton />
         <p className="mt-8 text-sm text-muted-foreground">Loading...</p>
       </div>
@@ -101,7 +138,7 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col px-6 py-6 max-w-5xl mx-auto">
+    <div className="min-h-screen flex flex-col px-6 py-6 max-w-6xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <BackButton onClick={() => navigate('/dashboard')} />
       </div>
@@ -109,7 +146,7 @@ const AdminDashboard = () => {
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Admin dashboard</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Review business setup submissions ({pendingCount} pending)
+          Review vendors, documents, bookings, services, and earnings ({pendingCount} pending)
         </p>
         <div className="mt-4">
           <Button variant="outline" className="h-10 rounded-full" onClick={() => navigate('/admin/create')}>
@@ -118,19 +155,54 @@ const AdminDashboard = () => {
         </div>
       </div>
 
+      <div className="grid gap-3 mb-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="border rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">Vendors</p>
+            <BriefcaseBusiness className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <p className="mt-2 text-2xl font-semibold">{totals.totalBusinesses}</p>
+        </div>
+        <div className="border rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">Bookings</p>
+            <CalendarCheck className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <p className="mt-2 text-2xl font-semibold">{totals.totalBookings}</p>
+        </div>
+        <div className="border rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">Services</p>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <p className="mt-2 text-2xl font-semibold">{totals.totalServices}</p>
+        </div>
+        <div className="border rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">Vendor earnings</p>
+            <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <p className="mt-2 text-2xl font-semibold">
+            {totals.currency} {totals.totalEarnings.toLocaleString()}
+          </p>
+        </div>
+      </div>
+
       {rows.length === 0 ? (
-        <div className="border rounded-2xl p-6">
+        <div className="border rounded-xl p-6">
           <p className="text-sm text-muted-foreground">No businesses found.</p>
         </div>
       ) : (
-        <div className="border rounded-2xl overflow-hidden">
+        <div className="border rounded-xl overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Business</TableHead>
                 <TableHead>Owner</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Submitted</TableHead>
+                <TableHead className="text-right">Bookings</TableHead>
+                <TableHead className="text-right">Services</TableHead>
+                <TableHead className="text-right">Earnings</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
@@ -151,8 +223,20 @@ const AdminDashboard = () => {
                       {row.verificationStatus}
                     </span>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {row.verificationSubmittedAt ? new Date(row.verificationSubmittedAt).toLocaleString() : '—'}
+                  <TableCell className="text-right text-sm">
+                    {row.stats?.totalBookings ?? 0}
+                    <span className="block text-xs text-muted-foreground">
+                      {row.stats?.confirmedBookings ?? 0} confirmed
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right text-sm">
+                    {row.stats?.totalServices ?? 0}
+                    <span className="block text-xs text-muted-foreground">
+                      {row.stats?.activeServices ?? 0} active
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right text-sm">
+                    {row.stats?.currency ?? 'NGN'} {Number(row.stats?.totalEarnings ?? 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button
@@ -161,7 +245,7 @@ const AdminDashboard = () => {
                       className="h-8 rounded-full"
                       onClick={() => navigate(`/admin/businesses/${row.id}`)}
                     >
-                      Review
+                      Preview
                     </Button>
                   </TableCell>
                 </TableRow>
