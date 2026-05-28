@@ -1,8 +1,13 @@
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import BackButton from '@/components/shared/BackButton';
 import { CheckCircle, CalendarIcon, Clock } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
+).replace(/\/$/, '');
 
 const BookingConfirmed = () => {
   const navigate = useNavigate();
@@ -14,6 +19,36 @@ const BookingConfirmed = () => {
     total: number;
   } | null;
   const reference = new URLSearchParams(location.search).get('reference');
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>(
+    reference ? 'sending' : 'idle',
+  );
+
+  useEffect(() => {
+    if (!reference) return;
+
+    let active = true;
+    const verifyPayment = async () => {
+      setEmailStatus('sending');
+      try {
+        const response = await fetch(
+          `${API_BASE}/public/paystack/verify?reference=${encodeURIComponent(reference)}`,
+          { method: 'POST' },
+        );
+        if (!response.ok) {
+          throw new Error('Payment verification failed');
+        }
+        if (active) setEmailStatus('sent');
+      } catch (error) {
+        console.error('[BookingConfirmed] Payment verification failed', error);
+        if (active) setEmailStatus('failed');
+      }
+    };
+
+    void verifyPayment();
+    return () => {
+      active = false;
+    };
+  }, [reference]);
 
   const formatTime = (t: string) => {
     const [h, m] = t.split(':').map(Number);
@@ -31,6 +66,16 @@ const BookingConfirmed = () => {
           <p className="mt-2 text-sm text-muted-foreground">
             Your appointment has been successfully scheduled. A confirmation email with your booking details has been sent to your inbox.
           </p>
+          {emailStatus === 'sending' && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Finalizing your confirmation email...
+            </p>
+          )}
+          {emailStatus === 'failed' && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Your payment was received, but we could not resend the confirmation email yet.
+            </p>
+          )}
           {reference && (
             <p className="mt-3 text-xs text-muted-foreground">
               Reference: <span className="font-mono">{reference}</span>
@@ -68,6 +113,16 @@ const BookingConfirmed = () => {
         <p className="text-sm text-muted-foreground mt-4">
           Your appointment has been successfully scheduled. A confirmation email with your booking details has been sent to your inbox.
         </p>
+        {emailStatus === 'sending' && (
+          <p className="text-xs text-muted-foreground mt-2">
+            Finalizing your confirmation email...
+          </p>
+        )}
+        {emailStatus === 'failed' && (
+          <p className="text-xs text-muted-foreground mt-2">
+            Your payment was received, but we could not resend the confirmation email yet.
+          </p>
+        )}
 
         <div className="w-full grid gap-3 mt-8 sm:grid-cols-2">
           <Button variant="outline" className="w-full h-12 rounded-full">
