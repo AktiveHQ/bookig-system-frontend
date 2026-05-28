@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import BankSelect from '../dashboard/BusinessEdit';
+import BankSelect from '@/components/shared/BankSelect';
 import { Textarea } from '@/components/ui/textarea';
 import BackButton from '@/components/shared/BackButton';
 import ProgressBar from '@/components/shared/ProgressBar';

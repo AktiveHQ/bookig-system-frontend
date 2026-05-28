@@ -30,7 +30,10 @@ export const useData = () => useContext(DataContext);
 
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
-).replace(/\/$/, '');
+).trim().replace(/\/$/, '');
+
+const AUTO_REFRESH_INTERVAL_MS = 2 * 60 * 1000;
+const FORM_ROUTES = ['/setup', '/business/edit', '/appointments/create'];
 
 const toBusiness = (raw: any): Business => ({
   id: String(raw?.id ?? ''),
@@ -232,128 +235,146 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [hasSetupComplete, setHasSetupComplete] = useState<boolean>(false);
   const [businessLinkCreated, setBusinessLinkCreated] = useState<boolean>(false);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async user => {
-      if (!user) {
-        setBusinessState(null);
-        setNotifications([]);
-        setAppointments([]);
-        setBookings([]);
-        setHasSetupComplete(false);
-        setBusinessLinkCreated(false);
-        return;
-      }
+  const clearDashboardData = useCallback(() => {
+    setBusinessState(null);
+    setNotifications([]);
+    setAppointments([]);
+    setBookings([]);
+    setHasSetupComplete(false);
+    setBusinessLinkCreated(false);
+  }, []);
 
+  const loadDashboardData = useCallback(async () => {
+    if (!auth.currentUser) return;
+
+    try {
+      let mappedBusiness: Business | null = null;
       try {
-        let mappedBusiness: Business | null = null;
-        try {
-          const meBusinessRaw = await apiFetch('/dashboard/businesses/me');
-          mappedBusiness = toBusiness(meBusinessRaw);
-          setBusinessState(mappedBusiness);
-          setHasSetupComplete(Boolean(mappedBusiness.id || mappedBusiness.slug));
-        } catch (error) {
-          if (isNotFoundError(error)) {
-            setBusinessState(null);
-            setHasSetupComplete(false);
-            setAppointments([]);
-            setBookings([]);
-            setBusinessLinkCreated(false);
-          } else {
-            throw error;
-          }
-        }
-
-        if (!mappedBusiness) {
+        const meBusinessRaw = await apiFetch('/dashboard/businesses/me');
+        mappedBusiness = toBusiness(meBusinessRaw);
+        setBusinessState(mappedBusiness);
+        setHasSetupComplete(Boolean(mappedBusiness.id || mappedBusiness.slug));
+      } catch (error) {
+        if (isNotFoundError(error)) {
+          clearDashboardData();
           return;
         }
+        throw error;
+      }
 
-        const servicesRaw = await apiFetch('/dashboard/services');
-        const serviceList = Array.isArray(servicesRaw) ? servicesRaw : servicesRaw?.items ?? [];
-        const mappedAppointments = serviceList.map((s: any) => toAppointment(s, mappedBusiness.id));
-        setAppointments(mappedAppointments);
-        setBusinessLinkCreated(mappedAppointments.length > 0);
+      const servicesRaw = await apiFetch('/dashboard/services');
+      const serviceList = Array.isArray(servicesRaw) ? servicesRaw : servicesRaw?.items ?? [];
+      const mappedAppointments = serviceList.map((s: any) => toAppointment(s, mappedBusiness.id));
+      setAppointments(mappedAppointments);
+      setBusinessLinkCreated(mappedAppointments.length > 0);
 
-        // Hydrate saved availability rules so owner dashboard reflects actual hours/days.
-        try {
-          const availabilityByServiceId = await Promise.all(
-            mappedAppointments.map(async (apt) => {
-              try {
-                const result = await apiFetch(`/dashboard/services/${apt.id}/availability`);
-                const rules = Array.isArray(result?.rules) ? result.rules : [];
-                const first = rules[0];
-                if (!first) return null;
-                return {
-                  id: apt.id,
-                  availableDays: Array.isArray(first.daysOfWeek)
-                    ? first.daysOfWeek.map(Number)
-                    : apt.availableDays,
-                  startTime: typeof first.startTimeLocal === 'string' ? first.startTimeLocal : apt.startTime,
-                  endTime: typeof first.endTimeLocal === 'string' ? first.endTimeLocal : apt.endTime,
-                };
-              } catch {
-                return null;
-              }
-            })
-          );
-
-          const byId = new Map(
-            availabilityByServiceId.filter(Boolean).map((row: any) => [row.id, row])
-          );
-          if (byId.size > 0) {
-            setAppointments(prev =>
-              prev.map(apt => {
-                const update = byId.get(apt.id);
-                if (!update) return apt;
-                return {
-                  ...apt,
-                  availableDays: update.availableDays,
-                  startTime: update.startTime,
-                  endTime: update.endTime,
-                };
-              })
-            );
-          }
-        } catch {
-          // ignore
-        }
-
-        const today = new Date().toISOString().slice(0, 10);
-        const bookingsByService = await Promise.all(
-          mappedAppointments.map(async apt => {
+      try {
+        const availabilityByServiceId = await Promise.all(
+          mappedAppointments.map(async (apt) => {
             try {
-              const result = await apiFetch(`/dashboard/services/${apt.id}/bookings?date=${today}`);
-              const rows = Array.isArray(result) ? result : result?.items ?? [];
-              return rows.map((b: any) => toBooking(b, apt.id, mappedBusiness.slug));
+              const result = await apiFetch(`/dashboard/services/${apt.id}/availability`);
+              const rules = Array.isArray(result?.rules) ? result.rules : [];
+              const first = rules[0];
+              if (!first) return null;
+              return {
+                id: apt.id,
+                availableDays: Array.isArray(first.daysOfWeek)
+                  ? first.daysOfWeek.map(Number)
+                  : apt.availableDays,
+                startTime: typeof first.startTimeLocal === 'string' ? first.startTimeLocal : apt.startTime,
+                endTime: typeof first.endTimeLocal === 'string' ? first.endTimeLocal : apt.endTime,
+              };
             } catch {
-              return [] as Booking[];
+              return null;
             }
           })
         );
-        setBookings(bookingsByService.flat());
 
-        try {
-          const notifRaw = await apiFetch('/dashboard/notifications');
-          const notifRows = Array.isArray(notifRaw) ? notifRaw : notifRaw?.items ?? [];
-          setNotifications(
-            notifRows.map((row: any) => ({
-              id: Number(row?.id),
-              type: (row?.type || 'info') as any,
-              message: String(row?.message ?? ''),
-              createdAt: String(row?.createdAt ?? new Date().toISOString()),
-              businessId: row?.businessId ?? null,
-            }))
+        const byId = new Map(
+          availabilityByServiceId.filter(Boolean).map((row: any) => [row.id, row])
+        );
+        if (byId.size > 0) {
+          setAppointments(prev =>
+            prev.map(apt => {
+              const update = byId.get(apt.id);
+              if (!update) return apt;
+              return {
+                ...apt,
+                availableDays: update.availableDays,
+                startTime: update.startTime,
+                endTime: update.endTime,
+              };
+            })
           );
-        } catch (error) {
-          console.error('Failed to load notifications', error);
-          setNotifications([]);
         }
-      } catch (error) {
-        console.error('Failed to load dashboard data', error);
+      } catch {
+        // keep existing availability if refresh cannot hydrate rules
       }
+
+      const today = new Date().toISOString().slice(0, 10);
+      const bookingsByService = await Promise.all(
+        mappedAppointments.map(async apt => {
+          try {
+            const result = await apiFetch(`/dashboard/services/${apt.id}/bookings?date=${today}`);
+            const rows = Array.isArray(result) ? result : result?.items ?? [];
+            return rows.map((b: any) => toBooking(b, apt.id, mappedBusiness.slug));
+          } catch {
+            return [] as Booking[];
+          }
+        })
+      );
+      setBookings(bookingsByService.flat());
+
+      try {
+        const notifRaw = await apiFetch('/dashboard/notifications');
+        const notifRows = Array.isArray(notifRaw) ? notifRaw : notifRaw?.items ?? [];
+        setNotifications(
+          notifRows.map((row: any) => ({
+            id: Number(row?.id),
+            type: (row?.type || 'info') as any,
+            message: String(row?.message ?? ''),
+            createdAt: String(row?.createdAt ?? new Date().toISOString()),
+            businessId: row?.businessId ?? null,
+          }))
+        );
+      } catch (error) {
+        console.error('Failed to load notifications', error);
+        setNotifications([]);
+      }
+    } catch (error) {
+      console.error('Failed to load dashboard data', error);
+    }
+  }, [clearDashboardData]);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, user => {
+      if (!user) {
+        clearDashboardData();
+        return;
+      }
+
+      void loadDashboardData();
     });
 
     return unsubscribe;
-  }, []);
+  }, [clearDashboardData, loadDashboardData]);
+
+  useEffect(() => {
+    const shouldSkipSilentRefresh = () => {
+      if (!auth.currentUser) return true;
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return true;
+      if (typeof window === 'undefined') return false;
+      return FORM_ROUTES.some(route => window.location.pathname.startsWith(route));
+    };
+
+    const intervalId = window.setInterval(() => {
+      if (!shouldSkipSilentRefresh()) {
+        void loadDashboardData();
+      }
+    }, AUTO_REFRESH_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [loadDashboardData]);
 
   const setBusiness = async (b: Business): Promise<{ ok: boolean; message?: string }> => {
     const hasPersistedBusinessId =
