@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import BackButton from '@/components/shared/BackButton';
+import { TimeslotCountdown, TimeslotExpiredAlert } from '@/components/shared/TimeslotCountdown';
 import { format, parseISO } from 'date-fns';
 import { CalendarIcon, Clock, ArrowRight } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -18,6 +19,15 @@ type BookingState = {
   appointmentCurrency?: string;
   date: string;
   time: string;
+};
+
+type TimeslotLock = {
+  lockId: string;
+  serviceId: string;
+  date: string;
+  time: string;
+  expiresAt: number;
+  lockDurationMs: number;
 };
 
 type ApiError = Error & { status?: number };
@@ -62,6 +72,9 @@ const BookingConfirmation = () => {
     currency: string;
   }>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [timeslotLock, setTimeslotLock] = useState<TimeslotLock | null>(null);
+  const [lockLoading, setLockLoading] = useState(false);
+  const [lockExpired, setLockExpired] = useState(false);
 
   if (!state?.appointmentId || !state?.date || !state?.time) {
     return (
@@ -70,6 +83,78 @@ const BookingConfirmation = () => {
       </div>
     );
   }
+
+  // Lock timeslot on page load
+  useEffect(() => {
+    let active = true;
+    const lockSlot = async () => {
+      setLockLoading(true);
+      try {
+        const res = await fetch(
+          `${API_BASE}/public/bookings/${state.appointmentId}/lock-slot`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              date: state.date,
+              startTimeLocal: state.time,
+            }),
+          }
+        );
+
+        if (!res.ok) {
+          const message = await getResponseErrorMessage(res, 'Failed to lock timeslot');
+          const apiError: ApiError = new Error(message);
+          apiError.status = res.status;
+          throw apiError;
+        }
+
+        const json = await res.json();
+        if (active) {
+          const lock: TimeslotLock = {
+            lockId: json.lockId,
+            serviceId: state.appointmentId,
+            date: state.date,
+            time: state.time,
+            expiresAt: new Date(json.expiresAt).getTime(),
+            lockDurationMs: json.lockDurationMs,
+          };
+          setTimeslotLock(lock);
+
+          try {
+            sessionStorage.setItem('akhq:timeslotLock', JSON.stringify(lock));
+          } catch {
+            // ignore
+          }
+        }
+      } catch (error) {
+        console.error('Failed to lock timeslot', error);
+        const apiError = error as ApiError;
+
+        if (apiError?.status === 409) {
+          toast({
+            title: 'Slot no longer available',
+            description: apiError.message || 'That time was just taken. Please choose another slot.',
+            variant: 'destructive',
+          });
+          setTimeout(() => navigate(-1), 2000);
+        } else {
+          toast({
+            title: 'Unable to reserve timeslot',
+            description: apiError?.message || 'Please try again.',
+            variant: 'destructive',
+          });
+        }
+      } finally {
+        if (active) setLockLoading(false);
+      }
+    };
+
+    lockSlot();
+    return () => {
+      active = false;
+    };
+  }, [state.appointmentId, state.date, state.time, navigate]);
 
   useEffect(() => {
     let active = true;
@@ -114,6 +199,15 @@ const BookingConfirmation = () => {
   const formattedPayAmount = useMemo(() => `${currency} ${Number(total).toLocaleString()}`, [currency, total]);
 
   const handlePay = async () => {
+    if (lockExpired) {
+      toast({
+        title: 'Timeslot reservation expired',
+        description: 'Your timeslot reservation has expired. Please select a new time.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const bookingResponse = await fetch(`${API_BASE}/public/bookings`, {
@@ -178,6 +272,7 @@ const BookingConfirmation = () => {
             time: state.time,
             amountToCharge: Number(paymentJson?.amountToCharge ?? total),
             currency: String(paymentJson?.currency ?? currency),
+            lockId: timeslotLock?.lockId,
           })
         );
       } catch {
@@ -208,12 +303,28 @@ const BookingConfirmation = () => {
     }
   };
 
+  const handleLockExpire = () => {
+    setLockExpired(true);
+  };
+
   return (
     <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-10 lg:py-10 max-w-5xl mx-auto">
       <BackButton />
 
       <div className="mt-6 space-y-6">
         <h1 className="text-xl font-bold lg:text-2xl">Confirm your booking</h1>
+
+        {lockExpired && (
+          <TimeslotExpiredAlert onRetry={() => navigate(-1)} />
+        )}
+
+        {timeslotLock && !lockExpired && (
+          <TimeslotCountdown
+            lockDurationMs={timeslotLock.lockDurationMs}
+            isActive={true}
+            onExpire={handleLockExpire}
+          />
+        )}
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-6">
@@ -274,7 +385,7 @@ const BookingConfirmation = () => {
             <Button
               onClick={handlePay}
               className="w-full h-12 rounded-full gap-2"
-              disabled={!fullName || !email || loading || checkoutLoading}
+              disabled={!fullName || !email || loading || checkoutLoading || lockLoading || lockExpired}
             >
               {loading ? 'Processing...' : `Pay ${formattedPayAmount}`}
               <ArrowRight className="h-4 w-4" />
