@@ -3,47 +3,42 @@ import { Clock, AlertCircle } from 'lucide-react';
 import { useCountdownTimer } from '@/hooks/use-countdown-timer';
 
 type TimeslotCountdownProps = {
-  lockDurationMs: number;
+  expiresAt: number;
   isActive: boolean;
   onExpire?: () => void;
 };
 
 export const TimeslotCountdown = ({
-  lockDurationMs,
+  expiresAt,
   isActive,
   onExpire,
 }: TimeslotCountdownProps) => {
-  const { formattedTime, isExpired, startTimer } = useCountdownTimer();
+  const { formattedTime, isExpired, secondsRemaining, startTimer } = useCountdownTimer();
 
   useEffect(() => {
     if (isActive) {
-      startTimer(lockDurationMs, onExpire);
+      startTimer(expiresAt, onExpire);
     }
-  }, [isActive, lockDurationMs, startTimer, onExpire]);
+  }, [expiresAt, isActive, onExpire, startTimer]);
 
   if (!isActive || isExpired) {
     return null;
   }
 
-  const isLowTime = Math.floor(lockDurationMs / 1000) - (Math.floor(lockDurationMs / 1000) - (60 * 2)) > 0;
+  const isLowTime = secondsRemaining <= 120;
 
   return (
     <div
-      className={`border rounded-lg p-4 flex items-center gap-3 ${
-        isLowTime ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'
+      className={`border rounded-2xl p-4 flex items-center gap-3 ${
+        isLowTime ? 'bg-red-50 border-red-200' : 'bg-red-50 border-red-100'
       }`}
     >
-      <Clock className={`h-5 w-5 ${isLowTime ? 'text-red-600' : 'text-blue-600'}`} />
+      <Clock className="h-5 w-5 text-red-600" />
       <div className="flex-1">
-        <p className={`text-sm font-semibold ${isLowTime ? 'text-red-900' : 'text-blue-900'}`}>
-          Timeslot reserved for {formattedTime}
+        <p className="text-sm text-red-950">
+          We've reserved your timeslot. Please complete checkout within{' '}
+          <span className="font-semibold text-red-600">{formattedTime}</span> to secure your booking.
         </p>
-        <p className={`text-xs ${isLowTime ? 'text-red-700' : 'text-blue-700'}`}>
-          Complete your payment before the time expires
-        </p>
-      </div>
-      <div className={`text-lg font-mono font-bold ${isLowTime ? 'text-red-600' : 'text-blue-600'}`}>
-        {formattedTime}
       </div>
     </div>
   );

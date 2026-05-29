@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,6 +55,22 @@ const getResponseErrorMessage = async (response: Response, fallback: string) => 
   return fallback;
 };
 
+const getOrCreateSessionId = () => {
+  const key = 'akhq:bookingSessionId';
+  try {
+    const existing = sessionStorage.getItem(key);
+    if (existing) return existing;
+    const next =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    sessionStorage.setItem(key, next);
+    return next;
+  } catch {
+    return `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+};
+
 const BookingConfirmation = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
@@ -94,7 +110,10 @@ const BookingConfirmation = () => {
           `${API_BASE}/public/bookings/${state.appointmentId}/lock-slot`,
           {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Session-ID': getOrCreateSessionId(),
+            },
             body: JSON.stringify({
               date: state.date,
               startTimeLocal: state.time,
@@ -219,6 +238,7 @@ const BookingConfirmation = () => {
           clientEmail: email,
           date: state.date,
           startTimeLocal: state.time,
+          lockId: timeslotLock?.lockId,
         }),
       });
 
@@ -303,9 +323,9 @@ const BookingConfirmation = () => {
     }
   };
 
-  const handleLockExpire = () => {
+  const handleLockExpire = useCallback(() => {
     setLockExpired(true);
-  };
+  }, []);
 
   return (
     <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-10 lg:py-10 max-w-5xl mx-auto">
@@ -320,7 +340,7 @@ const BookingConfirmation = () => {
 
         {timeslotLock && !lockExpired && (
           <TimeslotCountdown
-            lockDurationMs={timeslotLock.lockDurationMs}
+            expiresAt={timeslotLock.expiresAt}
             isActive={true}
             onExpire={handleLockExpire}
           />

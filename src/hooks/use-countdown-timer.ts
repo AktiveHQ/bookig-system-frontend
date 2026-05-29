@@ -1,58 +1,52 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type UseCountdownTimerResult = {
   secondsRemaining: number;
   isExpired: boolean;
   formattedTime: string;
-  startTimer: (durationMs: number, onExpire?: () => void) => void;
+  startTimer: (expiresAtMs: number, onExpire?: () => void) => void;
   stopTimer: () => void;
 };
 
 export const useCountdownTimer = (): UseCountdownTimerResult => {
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(0);
-  const [isExpired, setIsExpired] = useState<boolean>(false);
-  const [onExpireCallback, setOnExpireCallback] = useState<(() => void) | undefined>();
+  const [expiresAtMs, setExpiresAtMs] = useState<number | null>(null);
+  const [secondsRemaining, setSecondsRemaining] = useState(0);
+  const [isExpired, setIsExpired] = useState(false);
+  const onExpireRef = useRef<(() => void) | undefined>();
+  const expiredNotifiedRef = useRef(false);
 
   useEffect(() => {
-    if (secondsRemaining <= 0) {
-      setIsExpired(true);
-      if (onExpireCallback) {
-        onExpireCallback();
+    if (!expiresAtMs) return;
+
+    const tick = () => {
+      const next = Math.max(0, Math.ceil((expiresAtMs - Date.now()) / 1000));
+      setSecondsRemaining(next);
+      const expired = next <= 0;
+      setIsExpired(expired);
+      if (expired && !expiredNotifiedRef.current) {
+        expiredNotifiedRef.current = true;
+        onExpireRef.current?.();
       }
-      return;
-    }
+    };
 
-    const interval = setInterval(() => {
-      setSecondsRemaining((prev) => {
-        const next = prev - 1;
-        if (next <= 0) {
-          setIsExpired(true);
-          if (onExpireCallback) {
-            onExpireCallback();
-          }
-          return 0;
-        }
-        return next;
-      });
-    }, 1000);
+    tick();
+    const interval = window.setInterval(tick, 1000);
+    return () => window.clearInterval(interval);
+  }, [expiresAtMs]);
 
-    return () => clearInterval(interval);
-  }, [secondsRemaining, onExpireCallback]);
+  const startTimer = useCallback((nextExpiresAtMs: number, onExpire?: () => void) => {
+    onExpireRef.current = onExpire;
+    expiredNotifiedRef.current = false;
+    setExpiresAtMs(nextExpiresAtMs);
+  }, []);
 
-  const startTimer = (durationMs: number, onExpire?: () => void) => {
-    const seconds = Math.ceil(durationMs / 1000);
-    setSecondsRemaining(seconds);
-    setIsExpired(false);
-    if (onExpire) {
-      setOnExpireCallback(() => onExpire);
-    }
-  };
-
-  const stopTimer = () => {
+  const stopTimer = useCallback(() => {
+    onExpireRef.current = undefined;
+    expiredNotifiedRef.current = false;
+    setExpiresAtMs(null);
     setSecondsRemaining(0);
     setIsExpired(false);
-    setOnExpireCallback(undefined);
-  };
+  }, []);
 
   const minutes = Math.floor(secondsRemaining / 60);
   const seconds = secondsRemaining % 60;
