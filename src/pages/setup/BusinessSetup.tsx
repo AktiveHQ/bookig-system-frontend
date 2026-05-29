@@ -12,7 +12,7 @@ import { toast } from '@/hooks/use-toast';
 import WelcomeBackNote from '@/components/shared/WelcomeBackNote';
 
 const STEP_LABELS = ['4 easy steps!', 'Getting there!', 'Almost there!', 'Finish setup!'];
-const SETUP_TIMEOUT_SECONDS = 15 * 60;
+const SETUP_DRAFT_KEY = 'akhq:businessSetupDraft';
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
 ).trim().replace(/\/$/, '');
@@ -64,49 +64,71 @@ const BusinessSetup = () => {
   const [accountNumber, setAccountNumber] = useState('');
   const [resolvingAccount, setResolvingAccount] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(SETUP_TIMEOUT_SECONDS);
-  const [isExpired, setIsExpired] = useState(false);
 
   useEffect(() => {
-    if (isExpired) return;
-    const interval = setInterval(() => {
-      setSecondsLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          setIsExpired(true);
-          toast({
-            title: 'Setup session expired',
-            description: 'For security, this form expires after 15 minutes. Tap "Start again" to continue.',
-            variant: 'destructive',
-          });
-          return 0;
-        }
-        return prev - 1;
+    try {
+      const rawDraft = localStorage.getItem(SETUP_DRAFT_KEY);
+      if (!rawDraft) return;
+      const draft = JSON.parse(rawDraft);
+      setStep(Number.isInteger(draft.step) ? Math.min(Math.max(Number(draft.step), 0), 3) : 0);
+      setName(String(draft.name ?? ''));
+      setDescription(String(draft.description ?? ''));
+      setEmail(String(draft.email ?? ''));
+      setPhone(String(draft.phone ?? ''));
+      setCity(String(draft.city ?? ''));
+      setAddress(String(draft.address ?? ''));
+      setBookingImage(String(draft.bookingImage ?? ''));
+      setIdVerificationType(draft.idVerificationType || '');
+      setIdDocumentData(String(draft.idDocumentData ?? ''));
+      setCacDocumentData(String(draft.cacDocumentData ?? ''));
+      setAccountHolder(String(draft.accountHolder ?? ''));
+      setBankName(String(draft.bankName ?? ''));
+      setBankCode(String(draft.bankCode ?? ''));
+      setAccountNumber(String(draft.accountNumber ?? ''));
+      toast({
+        title: 'Draft restored',
+        description: 'Your saved setup progress has been loaded.',
       });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isExpired]);
+    } catch (error) {
+      console.error('[BusinessSetup] Failed to load setup draft:', error);
+    }
+  }, []);
 
-  const resetSetupSession = () => {
-    setStep(0);
-    setTransitioning(false);
-    setName('');
-    setDescription('');
-    setEmail('');
-    setPhone('');
-    setCity('');
-    setAddress('');
-    setBookingImage('');
-    setIdVerificationType('');
-    setIdDocumentData('');
-    setCacDocumentData('');
-    setAccountHolder('');
-    setBankName('');
-    setBankCode('');
-    setAccountNumber('');
-    setSaving(false);
-    setSecondsLeft(SETUP_TIMEOUT_SECONDS);
-    setIsExpired(false);
+  const saveSetupDraft = () => {
+    const draft = {
+      step,
+      name,
+      description,
+      email,
+      phone,
+      country,
+      city,
+      address,
+      bookingImage,
+      idVerificationType,
+      idDocumentData,
+      cacDocumentData,
+      accountHolder,
+      bankName,
+      bankCode,
+      accountNumber,
+    };
+
+    try {
+      localStorage.setItem(SETUP_DRAFT_KEY, JSON.stringify(draft));
+      toast({
+        title: 'Setup saved',
+        description: 'You can come back later and continue from this device.',
+      });
+      navigate('/');
+    } catch (error) {
+      console.error('[BusinessSetup] Failed to save setup draft:', error);
+      toast({
+        title: 'Could not save setup',
+        description: 'Your browser could not store this draft. Try removing large uploads and save again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleBankInputChange = useCallback(() => {
@@ -170,7 +192,6 @@ const BusinessSetup = () => {
   }, [accountNumber, bankCode]);
 
   const goNext = () => {
-    if (isExpired) return;
     setTransitioning(true);
     setTimeout(() => {
       setStep(s => s + 1);
@@ -179,7 +200,6 @@ const BusinessSetup = () => {
   };
 
   const goBack = () => {
-    if (isExpired) return;
     if (step === 0) return;
     setTransitioning(true);
     setTimeout(() => {
@@ -189,14 +209,6 @@ const BusinessSetup = () => {
   };
 
   const handleFinish = async () => {
-    if (isExpired) {
-      toast({
-        title: 'Session expired',
-        description: 'Please start again and resubmit the form.',
-        variant: 'destructive',
-      });
-      return;
-    }
     setSaving(true);
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const businessPayload = {
@@ -223,6 +235,11 @@ const BusinessSetup = () => {
     }
 
     setHasSetupComplete(true);
+    try {
+      localStorage.removeItem(SETUP_DRAFT_KEY);
+    } catch {
+      // ignore
+    }
     toast({
       title: 'Profile submitted',
       description:
@@ -331,39 +348,27 @@ const BusinessSetup = () => {
     return null;
   };
 
-  const minutes = Math.floor(secondsLeft / 60)
-    .toString()
-    .padStart(2, '0');
-  const seconds = (secondsLeft % 60).toString().padStart(2, '0');
-
   return (
     <div className="min-h-screen flex flex-col px-4 py-6 sm:px-6 max-w-2xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <BackButton onClick={step > 0 ? goBack : undefined} />
       </div>
       <WelcomeBackNote />
-      <div className={`mb-4 rounded-xl border px-3 py-2 text-sm ${isExpired ? 'border-destructive text-destructive' : 'border-border text-muted-foreground'}`}>
-        {isExpired ? 'Session expired.' : `Session expires in ${minutes}:${seconds}`}
-        <Button type="button" variant="link" className="h-auto px-2 py-0 text-sm" onClick={resetSetupSession}>
-          Start again
+      <div className="mb-4 flex justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-10 rounded-full"
+          onClick={saveSetupDraft}
+        >
+          Save and continue later
         </Button>
       </div>
 
       <ProgressBar currentStep={step} totalSteps={4} labels={STEP_LABELS} />
 
       <div className={`flex-1 flex flex-col mt-8 transition-opacity duration-200 ${transitioning ? 'opacity-0' : 'opacity-100'}`}>
-        {isExpired && (
-          <div className="border rounded-2xl p-5 space-y-3">
-            <h1 className="text-xl font-bold">Session expired</h1>
-            <p className="text-sm text-muted-foreground">
-              For security, setup sessions expire after 15 minutes. Start again to continue.
-            </p>
-            <Button onClick={resetSetupSession} className="h-12 rounded-full">
-              Start again
-            </Button>
-          </div>
-        )}
-        {!isExpired && step === 0 && (
+        {step === 0 && (
           <div className="space-y-5 flex-1 flex flex-col">
             <div>
               <h1 className="text-xl font-bold">Let's Set Up Your Booking System</h1>
@@ -395,7 +400,7 @@ const BusinessSetup = () => {
           </div>
         )}
 
-        {!isExpired && step === 1 && (
+        {step === 1 && (
           <div className="space-y-5 flex-1 flex flex-col">
             <h1 className="text-xl font-bold">Where is your business located?</h1>
             <div className="space-y-4 flex-1">
@@ -418,7 +423,7 @@ const BusinessSetup = () => {
           </div>
         )}
 
-        {!isExpired && step === 2 && (
+        {step === 2 && (
           <div className="space-y-5 flex-1 flex flex-col">
             <h1 className="text-xl font-bold">Business information</h1>
             <div className="space-y-4 flex-1">
@@ -565,7 +570,7 @@ const BusinessSetup = () => {
           </div>
         )}
 
-        {!isExpired && step === 3 && (
+        {step === 3 && (
           <div className="space-y-5 flex-1 flex flex-col">
             <div>
               <h1 className="text-xl font-bold">How you want to get paid and where your money should go</h1>

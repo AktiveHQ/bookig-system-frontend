@@ -31,6 +31,22 @@ const API_BASE = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
 ).replace(/\/$/, '');
 
+const getOrCreateSessionId = () => {
+  const key = 'akhq:bookingSessionId';
+  try {
+    const existing = sessionStorage.getItem(key);
+    if (existing) return existing;
+    const next =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    sessionStorage.setItem(key, next);
+    return next;
+  } catch {
+    return `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+};
+
 const BusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
@@ -108,7 +124,12 @@ const BusinessPage = () => {
     const loadAvailability = async () => {
       try {
         const response = await fetch(
-          `${API_BASE}/public/services/${selectedService.id}/availability?date=${dateStr}`
+          `${API_BASE}/public/services/${selectedService.id}/availability?date=${dateStr}`,
+          {
+            headers: {
+              'X-Session-ID': getOrCreateSessionId(),
+            },
+          }
         );
         if (!response.ok) throw new Error('Failed to load availability');
         const json = await response.json();
