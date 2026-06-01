@@ -328,11 +328,11 @@ const BookingConfirmation = () => {
   }, []);
 
   return (
-    <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-10 lg:py-10 max-w-5xl mx-auto">
+    <div className="min-h-screen px-4 py-6 text-[#020c1a] sm:px-6 lg:px-10 lg:py-10 max-w-5xl mx-auto">
       <BackButton />
 
       <div className="mt-6 space-y-6">
-        <h1 className="text-xl font-bold lg:text-2xl">Confirm your booking</h1>
+        <h1 className="text-xl font-bold text-[#020c1a] lg:text-2xl">Confirm your booking</h1>
 
         {lockExpired && (
           <TimeslotExpiredAlert onRetry={() => navigate(-1)} />
@@ -348,37 +348,37 @@ const BookingConfirmation = () => {
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-6">
-            <div className="border rounded-2xl p-5 space-y-3">
+            <div className="border border-[#020c1a]/10 rounded-2xl p-5 space-y-3">
               <h3 className="font-semibold">{state.appointmentName || 'Selected service'}</h3>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-sm text-[#020c1a]/60">
                 <CalendarIcon className="h-4 w-4" />
                 <span>{format(parseISO(state.date), 'EEEE, d MMMM')}</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-sm text-[#020c1a]/60">
                 <Clock className="h-4 w-4" />
                 <span>{formatTime(state.time)}</span>
               </div>
               <p className="text-sm font-medium">{currency} {Number(subtotal).toLocaleString()}</p>
             </div>
 
-            <div className="border rounded-2xl p-5 space-y-3">
+            <div className="border border-[#020c1a]/10 rounded-2xl p-5 space-y-3">
               <h3 className="font-semibold text-sm">Payment Summary</h3>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Item</span>
-                  <span className="text-muted-foreground">Amount</span>
+                  <span className="text-[#020c1a]/60">Item</span>
+                  <span className="text-[#020c1a]/60">Amount</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Service fee</span>
                   <span>{currency} {Number(subtotal).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Service charge (5%)</span>
-                  <span className="text-muted-foreground">
+                  <span className="text-[#020c1a]/60">Service charge (5%)</span>
+                  <span className="text-[#020c1a]/60">
                     {checkoutLoading ? '...' : `${currency} ${Number(platformFee).toLocaleString()}`}
                   </span>
                 </div>
-                <div className="border-t pt-2 flex justify-between text-sm font-semibold">
+                <div className="border-t border-[#020c1a]/10 pt-2 flex justify-between text-sm font-semibold">
                   <span>Total</span>
                   <span>{checkoutLoading ? '...' : `${currency} ${Number(total).toLocaleString()}`}</span>
                 </div>
@@ -387,24 +387,24 @@ const BookingConfirmation = () => {
           </div>
 
           <div className="space-y-6">
-            <div className="space-y-4 border rounded-2xl p-5">
+            <div className="space-y-4 border border-[#020c1a]/10 rounded-2xl p-5">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Full name</label>
-                <Input value={fullName} onChange={e => setFullName(e.target.value)} className="h-12 rounded-xl" />
+                <Input value={fullName} onChange={e => setFullName(e.target.value)} className="h-12 rounded-xl border-[#020c1a]/10 focus-visible:ring-[#020c1a]" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Email Address</label>
-                <Input type="email" value={email} onChange={e => setEmail(e.target.value)} className="h-12 rounded-xl" />
+                <Input type="email" value={email} onChange={e => setEmail(e.target.value)} className="h-12 rounded-xl border-[#020c1a]/10 focus-visible:ring-[#020c1a]" />
               </div>
             </div>
 
-            <p className="text-xs text-center text-muted-foreground">
+            <p className="text-xs text-center text-[#020c1a]/55">
               Pay Securely. Powered by Paystack
             </p>
 
             <Button
               onClick={handlePay}
-              className="w-full h-12 rounded-full gap-2"
+              className="w-full h-12 rounded-full gap-2 bg-[#020c1a] text-white hover:bg-[#020c1a]/90"
               disabled={!fullName || !email || loading || checkoutLoading || lockLoading || lockExpired}
             >
               {loading ? 'Processing...' : `Pay ${formattedPayAmount}`}
