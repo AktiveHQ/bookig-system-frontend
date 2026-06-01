@@ -232,7 +232,7 @@ const BusinessPage = () => {
               }}
               className={cn(
                 'w-full rounded-xl border border-[#020c1a]/10 bg-background p-4 text-left transition-colors shadow-[1px_2px_2px_rgba(0,0,0,0.25)]',
-                selectedService?.id === service.id ? 'border-[#020c1a]' : 'hover:border-[#020c1a]/20 hover:bg-[#020c1a]/[0.03]'
+                selectedService?.id === service.id ? 'border-[#020c1a]/30' : 'hover:border-[#020c1a]/20 hover:bg-[#020c1a]/[0.03]'
               )}
             >
               <h3 className="text-sm font-medium text-[#020c1a]">{service.name}</h3>
@@ -260,6 +260,13 @@ const BusinessPage = () => {
                     }}
                     disabled={isDateDisabled}
                     className="pointer-events-auto"
+                    classNames={{
+                      cell: 'h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-[#020c1a]/5 [&:has([aria-selected])]:bg-[#020c1a]/10 first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20',
+                      day_selected:
+                        'bg-[#020c1a] text-white hover:bg-[#020c1a] hover:text-white focus:bg-[#020c1a] focus:text-white',
+                      day_today: 'bg-[#020c1a]/5 text-[#020c1a]',
+                      day_range_middle: 'aria-selected:bg-[#020c1a]/10 aria-selected:text-[#020c1a]',
+                    }}
                   />
                 </div>
 

@@ -77,7 +77,7 @@ const BookingConfirmed = () => {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 text-[#020c1a]">
         <div className="max-w-md text-center">
-          <CheckCircle className="mx-auto h-12 w-12 text-[#020c1a]" />
+          <CheckCircle className="mx-auto h-12 w-12 text-green-600" />
           <h1 className="mt-4 text-2xl font-bold">Booking Confirmed</h1>
           <p className="mt-2 text-sm text-[#020c1a]/60">
             Your appointment has been successfully scheduled. A confirmation email with your booking details has been sent to your inbox.
@@ -128,7 +128,7 @@ const BookingConfirmed = () => {
           </div>
         </div>
 
-        <CheckCircle className="h-12 w-12 text-[#020c1a] mt-6" />
+        <CheckCircle className="h-12 w-12 text-green-600 mt-6" />
 
         <p className="text-sm font-medium mt-6">
           A confirmation has been sent to your email.
@@ -145,7 +145,10 @@ const BookingConfirmed = () => {
         )}
 
         <div className="w-full grid gap-3 mt-8 sm:grid-cols-2">
-          <Button variant="outline" className="w-full h-12 rounded-full border-[#020c1a]/20 text-[#020c1a] hover:bg-[#020c1a]/[0.03]">
+          <Button
+            variant="outline"
+            className="w-full h-12 rounded-full border-[#020c1a]/20 text-[#020c1a] hover:bg-[#020c1a]/[0.03] hover:text-[#020c1a] focus-visible:ring-[#020c1a]"
+          >
             Add to calendar
           </Button>
           <Button className="w-full h-12 rounded-full bg-[#020c1a] text-white hover:bg-[#020c1a]/90" onClick={() => navigate('/')}>
