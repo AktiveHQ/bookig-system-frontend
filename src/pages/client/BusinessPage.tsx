@@ -183,7 +183,7 @@ const BusinessPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 sm:px-6">
+      <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 bg-[#EFEFEF]">
         <p className="text-muted-foreground">Loading booking page...</p>
       </div>
     );
@@ -191,34 +191,32 @@ const BusinessPage = () => {
 
   if (!hasData || !business) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 sm:px-6">
+      <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 bg-[#EFEFEF]">
         <p className="text-muted-foreground">Business not found.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-10 lg:py-10 max-w-5xl mx-auto">
-      <div className="flex items-start gap-4 mb-8 lg:mb-10">
-        <div className="h-16 w-16 rounded-lg bg-accent shrink-0 overflow-hidden">
+    <div className="min-h-screen bg-[#EFEFEF] px-6 py-16 sm:px-10 lg:px-12">
+      <div className="mx-auto w-full max-w-sm">
+        <div className="mb-7">
+          <div className="h-24 w-32 overflow-hidden rounded-sm bg-background">
           {business.headerImageUrl && (
             <img src={business.headerImageUrl} alt={business.name} className="h-full w-full object-cover" />
           )}
+          </div>
+          <div className="mt-7 text-left">
+            <h1 className="text-lg font-bold text-foreground">{business.name}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{business.address}</p>
+          </div>
         </div>
-        <div className="text-left">
-          <h1 className="text-xl font-bold lg:text-2xl">{business.name}</h1>
-          <p className="text-sm text-muted-foreground">{business.description}</p>
+
+        <div className="mb-4">
+          <h2 className="text-base font-medium text-foreground">Book an appointment</h2>
         </div>
-      </div>
 
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold lg:text-xl">Book Your Appointment in Minutes</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Choose your preferred service, pick a convenient time, and confirm your booking instantly.
-        </p>
-      </div>
-
-      <div className="space-y-3 lg:space-y-4">
+      <div className="space-y-3">
         {services.map(service => (
           <div key={service.id}>
             <button
@@ -229,22 +227,22 @@ const BusinessPage = () => {
                 setSlots([]);
               }}
               className={cn(
-                'w-full text-left border rounded-2xl p-4 lg:p-5 transition-colors',
-                selectedService?.id === service.id ? 'border-foreground' : 'hover:bg-accent/50'
+                'w-full rounded-xl border border-border bg-background p-4 text-left transition-colors shadow-[1px_2px_2px_rgba(0,0,0,0.25)]',
+                selectedService?.id === service.id ? 'border-foreground' : 'hover:bg-white/80'
               )}
             >
-              <h3 className="font-semibold">{service.name}</h3>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {service.currency || 'NGN'} {service.priceAmount.toLocaleString()} | {service.durationMinutes}mins
+              <h3 className="text-sm font-medium text-foreground">{service.name}</h3>
+              <p className="mt-3 text-sm text-muted-foreground">
+                {service.currency || 'NGN'} {service.priceAmount.toLocaleString()} <span className="mx-2">|</span> {service.durationMinutes}mins
               </p>
               {service.description && (
-                <p className="text-sm text-muted-foreground mt-2">{service.description}</p>
+                <p className="mt-3 line-clamp-3 text-xs leading-snug text-muted-foreground">{service.description}</p>
               )}
             </button>
 
             {selectedService?.id === service.id && (
               <div className="mt-3 space-y-4 lg:space-y-5">
-                <div className="border rounded-2xl p-4 lg:p-5 overflow-x-auto">
+                <div className="overflow-x-auto rounded-xl border border-border bg-background p-4 shadow-[1px_2px_2px_rgba(0,0,0,0.25)]">
                   <div className="flex items-center gap-2 mb-3">
                     <CalendarIcon className="h-4 w-4" />
                     <span className="text-sm font-medium">Select date</span>
@@ -297,6 +295,7 @@ const BusinessPage = () => {
             )}
           </div>
         ))}
+      </div>
       </div>
     </div>
   );
