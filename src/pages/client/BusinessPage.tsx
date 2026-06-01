@@ -199,9 +199,10 @@ const BusinessPage = () => {
 
   return (
     <div className="min-h-screen bg-[#EFEFEF] px-6 py-16 sm:px-10 lg:px-12">
-      <div className="mx-auto w-full max-w-sm">
+      <div className="mx-auto flex min-h-[calc(100vh-8rem)] w-full max-w-sm flex-col">
+        <div className="flex-1">
         <div className="mb-7">
-          <div className="h-24 w-32 overflow-hidden rounded-sm bg-background">
+          <div className="h-24 w-32 overflow-hidden bg-background">
           {business.headerImageUrl && (
             <img src={business.headerImageUrl} alt={business.name} className="h-full w-full object-cover" />
           )}
@@ -213,7 +214,10 @@ const BusinessPage = () => {
         </div>
 
         <div className="mb-4">
-          <h2 className="text-base font-medium text-foreground">Book an appointment</h2>
+          <h2 className="text-lg font-semibold text-foreground">Book Your Appointment in Minutes</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Choose your preferred service, pick a convenient time, and confirm your booking instantly.
+          </p>
         </div>
 
       <div className="space-y-3">
@@ -296,6 +300,11 @@ const BusinessPage = () => {
           </div>
         ))}
       </div>
+        </div>
+        <footer className="pt-12 text-center text-xs text-muted-foreground">
+          <p>Powered by ActiveHq</p>
+          <p className="mt-1">Copyright @2026</p>
+        </footer>
       </div>
     </div>
   );
