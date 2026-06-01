@@ -12,12 +12,28 @@ const API_BASE = (
 const BookingConfirmed = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state as {
+  const routeState = location.state as {
     appointmentName: string;
     date: string;
     time: string;
     total: number;
   } | null;
+  const [storedState] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem('akhq:lastBooking');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return {
+        appointmentName: String(parsed?.appointmentName ?? 'Selected service'),
+        date: String(parsed?.date ?? ''),
+        time: String(parsed?.time ?? ''),
+        total: Number(parsed?.amountToCharge ?? parsed?.total ?? 0),
+      };
+    } catch {
+      return null;
+    }
+  });
+  const state = routeState ?? storedState;
   const reference = new URLSearchParams(location.search).get('reference');
   const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>(
     reference ? 'sending' : 'idle',
@@ -94,24 +110,28 @@ const BookingConfirmed = () => {
       <BackButton onClick={() => navigate('/')} />
 
       <div className="flex-1 flex flex-col items-center justify-center text-center">
-        <h1 className="text-2xl font-bold mb-2">Booking Confirmed</h1>
+        <h1 className="text-lg font-bold mb-4">Booking confirmed!</h1>
 
-        <div className="border rounded-2xl p-5 w-full space-y-3 mt-6 text-left lg:p-6">
-          <h3 className="font-semibold">{state.appointmentName}</h3>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CalendarIcon className="h-4 w-4" />
-            <span>{format(parseISO(state.date), 'EEEE, d MMMM')}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Clock className="h-4 w-4" />
-            <span>{formatTime(state.time)}</span>
+        <div className="border rounded-xl p-4 w-full text-left shadow-[1px_2px_2px_rgba(0,0,0,0.12)]">
+          <div className="space-y-3">
+              <h3 className="text-sm font-semibold">{state.appointmentName}</h3>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <CalendarIcon className="h-4 w-4" />
+                <span>
+                  {state.date ? format(parseISO(state.date), 'EEEE, d MMMM') : 'Date confirmed'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                <span>{state.time ? formatTime(state.time) : 'Time confirmed'}</span>
+              </div>
           </div>
         </div>
 
         <CheckCircle className="h-12 w-12 text-green-600 mt-6" />
 
-        <p className="text-sm text-muted-foreground mt-4">
-          Your appointment has been successfully scheduled. A confirmation email with your booking details has been sent to your inbox.
+        <p className="text-sm font-medium mt-6">
+          A confirmation has been sent to your email.
         </p>
         {emailStatus === 'sending' && (
           <p className="text-xs text-muted-foreground mt-2">

@@ -183,7 +183,7 @@ const BusinessPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 bg-[#EFEFEF]">
+      <div className="min-h-screen flex items-center justify-center px-4 sm:px-6">
         <p className="text-muted-foreground">Loading booking page...</p>
       </div>
     );
@@ -191,14 +191,14 @@ const BusinessPage = () => {
 
   if (!hasData || !business) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 bg-[#EFEFEF]">
+      <div className="min-h-screen flex items-center justify-center px-4 sm:px-6">
         <p className="text-muted-foreground">Business not found.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#EFEFEF] px-6 py-16 sm:px-10 lg:px-12">
+    <div className="min-h-screen px-6 py-16 text-[#020c1a] sm:px-10 lg:px-12">
       <div className="mx-auto flex min-h-[calc(100vh-8rem)] w-full max-w-sm flex-col">
         <div className="flex-1">
         <div className="mb-7">
@@ -208,14 +208,14 @@ const BusinessPage = () => {
           )}
           </div>
           <div className="mt-7 text-left">
-            <h1 className="text-lg font-bold text-foreground">{business.name}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{business.address}</p>
+            <h1 className="text-lg font-bold text-[#020c1a]">{business.name}</h1>
+            <p className="mt-1 text-sm text-[#020c1a]/60">{business.address}</p>
           </div>
         </div>
 
         <div className="mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Book Your Appointment in Minutes</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h2 className="text-lg font-semibold text-[#020c1a]">Book Your Appointment in Minutes</h2>
+          <p className="mt-1 text-sm text-[#020c1a]/60">
             Choose your preferred service, pick a convenient time, and confirm your booking instantly.
           </p>
         </div>
@@ -231,22 +231,22 @@ const BusinessPage = () => {
                 setSlots([]);
               }}
               className={cn(
-                'w-full rounded-xl border border-border bg-background p-4 text-left transition-colors shadow-[1px_2px_2px_rgba(0,0,0,0.25)]',
-                selectedService?.id === service.id ? 'border-foreground' : 'hover:bg-white/80'
+                'w-full rounded-xl border border-[#020c1a]/10 bg-background p-4 text-left transition-colors shadow-[1px_2px_2px_rgba(0,0,0,0.25)]',
+                selectedService?.id === service.id ? 'border-[#020c1a]' : 'hover:border-[#020c1a]/20 hover:bg-[#020c1a]/[0.03]'
               )}
             >
-              <h3 className="text-sm font-medium text-foreground">{service.name}</h3>
-              <p className="mt-3 text-sm text-muted-foreground">
+              <h3 className="text-sm font-medium text-[#020c1a]">{service.name}</h3>
+              <p className="mt-3 text-sm text-[#020c1a]/60">
                 {service.currency || 'NGN'} {service.priceAmount.toLocaleString()} <span className="mx-2">|</span> {service.durationMinutes}mins
               </p>
               {service.description && (
-                <p className="mt-3 line-clamp-3 text-xs leading-snug text-muted-foreground">{service.description}</p>
+                <p className="mt-3 line-clamp-3 text-xs leading-snug text-[#020c1a]/55">{service.description}</p>
               )}
             </button>
 
             {selectedService?.id === service.id && (
               <div className="mt-3 space-y-4 lg:space-y-5">
-                <div className="overflow-x-auto rounded-xl border border-border bg-background p-4 shadow-[1px_2px_2px_rgba(0,0,0,0.25)]">
+                <div className="overflow-x-auto rounded-xl border border-[#020c1a]/10 bg-background p-4 shadow-[1px_2px_2px_rgba(0,0,0,0.25)]">
                   <div className="flex items-center gap-2 mb-3">
                     <CalendarIcon className="h-4 w-4" />
                     <span className="text-sm font-medium">Select date</span>
@@ -265,7 +265,7 @@ const BusinessPage = () => {
 
                 {selectedDate && (
                   <div>
-                    <p className="text-sm font-medium mb-3">Available times</p>
+                    <p className="text-sm font-medium mb-3 text-[#020c1a]">Available times</p>
                     {slots.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No available slots for this day</p>
                     ) : (
@@ -277,9 +277,9 @@ const BusinessPage = () => {
                             onClick={() => setSelectedTime(slot.time)}
                             className={cn(
                               'px-4 py-2 rounded-full text-sm font-medium transition-colors',
-                              !slot.available && 'opacity-30 cursor-not-allowed bg-accent',
-                              slot.available && selectedTime === slot.time && 'bg-foreground text-background',
-                              slot.available && selectedTime !== slot.time && 'border hover:bg-accent'
+                              !slot.available && 'cursor-not-allowed bg-[#020c1a]/5 text-[#020c1a]/30',
+                              slot.available && selectedTime === slot.time && 'bg-[#020c1a] text-white',
+                              slot.available && selectedTime !== slot.time && 'border border-[#020c1a]/10 text-[#020c1a] hover:bg-[#020c1a]/[0.03]'
                             )}
                           >
                             {formatTime(slot.time)}
@@ -291,7 +291,7 @@ const BusinessPage = () => {
                 )}
 
                 {selectedTime && (
-                  <Button onClick={handleContinue} className="w-full sm:w-auto sm:min-w-44 h-12 rounded-full gap-2 mt-4">
+                  <Button onClick={handleContinue} className="w-full sm:w-auto sm:min-w-44 h-12 rounded-full gap-2 mt-4 bg-[#020c1a] text-white hover:bg-[#020c1a]/90">
                     Continue <ArrowRight className="h-4 w-4" />
                   </Button>
                 )}
@@ -301,7 +301,7 @@ const BusinessPage = () => {
         ))}
       </div>
         </div>
-        <footer className="pt-12 text-center text-xs text-muted-foreground">
+        <footer className="pt-12 text-center text-xs text-[#020c1a]/55">
           <p>Powered by ActiveHq</p>
           <p className="mt-1">Copyright @2026</p>
         </footer>
