@@ -171,7 +171,7 @@ const BusinessEdit = () => {
       return;
     }
 
-    toast({ title: 'Business profile updated' });
+    toast({ title: 'Business settings updated' });
     navigate('/dashboard');
   };
 
@@ -298,7 +298,7 @@ const BusinessEdit = () => {
 
       <div className="space-y-6 flex-1">
         <div>
-          <h1 className="text-2xl font-bold">Edit business profile</h1>
+          <h1 className="text-2xl font-bold">Business settings</h1>
           <p className="text-sm text-muted-foreground mt-1">Update your business details and payouts</p>
         </div>
 

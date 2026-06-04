@@ -243,7 +243,7 @@ const BusinessSetup = () => {
     toast({
       title: 'Profile submitted',
       description:
-        'Your account is now under review. We will notify you once verification is complete.',
+        'Your business is ready. You can start creating services and accepting bookings.',
     });
     navigate('/dashboard');
   };

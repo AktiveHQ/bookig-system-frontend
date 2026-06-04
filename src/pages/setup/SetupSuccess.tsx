@@ -10,7 +10,7 @@ const SetupSuccess = () => {
       <CheckCircle className="h-16 w-16 text-green-600 mb-6" />
       <h1 className="text-2xl font-bold mb-2">Set up successful</h1>
       <p className="text-muted-foreground text-sm mb-8">
-        Once approved (approval usually takes 45mins - 1hr), you can start creating appointments.
+        Your business is ready. You can start creating services and accepting bookings.
       </p>
       <Button onClick={() => navigate('/dashboard')} className="w-full h-12 rounded-full gap-2">
         Go to dashboard <ArrowRight className="h-4 w-4" />
