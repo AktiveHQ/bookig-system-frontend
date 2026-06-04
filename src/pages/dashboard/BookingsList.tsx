@@ -116,7 +116,7 @@ const BookingsList = () => {
     return () => {
       active = false;
     };
-  }, [appointments, business?.slug, refreshBookingsForDate, selectedDate, filterType, dateRangeStart, dateRangeEnd];
+  }, [appointments, business?.slug, refreshBookingsForDate, selectedDate, filterType, dateRangeStart, dateRangeEnd]);
 
   const filteredBookings = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
