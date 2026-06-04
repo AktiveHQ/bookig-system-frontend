@@ -51,9 +51,11 @@ export interface Booking {
   businessSlug: string;
   clientName: string;
   clientEmail: string;
+  appointmentName?: string;
   date: string; // YYYY-MM-DD
   time: string; // "10:00"
   status: 'pending_payment' | 'confirmed' | 'cancelled' | 'expired' | 'completed';
+  attendanceStatus?: 'NOT_MARKED' | 'SERVICED' | 'NO_SHOW';
   createdAt: string;
 }
 

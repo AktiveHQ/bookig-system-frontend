@@ -14,6 +14,11 @@ interface DataContextType {
   deleteAppointment: (id: string) => Promise<void>;
   setAppointmentPaused: (id: string, paused: boolean) => Promise<void>;
   refreshBookingsForDate: (appointmentId: string, date: string) => Promise<void>;
+  fetchBookingHistory: (filters?: {
+    from?: string;
+    to?: string;
+    serviceId?: string;
+  }) => Promise<Booking[]>;
   bookings: Booking[];
   addBooking: (b: Booking) => void;
   getBookingsForAppointment: (appointmentId: string) => Booking[];
@@ -84,6 +89,7 @@ const toBooking = (raw: any, appointmentId = '', businessSlug = ''): Booking => 
   businessSlug: String(raw?.businessSlug ?? businessSlug),
   clientName: String(raw?.clientName ?? ''),
   clientEmail: String(raw?.clientEmail ?? ''),
+  appointmentName: raw?.service?.name ? String(raw.service.name) : raw?.appointmentName ? String(raw.appointmentName) : undefined,
   date: (() => {
     const startAt = raw?.startAt ? new Date(String(raw.startAt)) : null;
     if (startAt && !Number.isNaN(startAt.getTime())) {
@@ -110,6 +116,7 @@ const toBooking = (raw: any, appointmentId = '', businessSlug = ''): Booking => 
     if (legacy === 'cancelled') return 'cancelled';
     return 'confirmed';
   })(),
+  attendanceStatus: raw?.attendanceStatus ? String(raw.attendanceStatus) as Booking['attendanceStatus'] : undefined,
   createdAt: String(raw?.createdAt ?? raw?.startAt ?? new Date().toISOString()),
 });
 
@@ -644,6 +651,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [business?.slug]
   );
 
+  const fetchBookingHistory = useCallback(
+    async (filters?: { from?: string; to?: string; serviceId?: string }) => {
+      const params = new URLSearchParams();
+      if (filters?.from) params.set('from', filters.from);
+      if (filters?.to) params.set('to', filters.to);
+      if (filters?.serviceId && filters.serviceId !== 'all') {
+        params.set('serviceId', filters.serviceId);
+      }
+
+      const query = params.toString();
+      const result = await apiFetch(`/dashboard/bookings${query ? `?${query}` : ''}`);
+      const rows = Array.isArray(result) ? result : result?.items ?? [];
+      const mapped = rows.map((b: any) => toBooking(b, String(b?.serviceId ?? ''), business?.slug ?? ''));
+
+      setBookings(prev => {
+        const next = new Map<string, Booking>();
+        for (const row of prev) next.set(row.id, row);
+        for (const row of mapped) next.set(row.id, row);
+        return Array.from(next.values());
+      });
+
+      return mapped;
+    },
+    [business?.slug],
+  );
+
   const getBookingsForAppointment = (appointmentId: string) =>
     bookings.filter(b => b.appointmentId === appointmentId);
 
@@ -667,6 +700,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       deleteAppointment,
       setAppointmentPaused,
       refreshBookingsForDate,
+      fetchBookingHistory,
       bookings,
       addBooking,
       getBookingsForAppointment,
@@ -683,6 +717,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       bookings,
       hasSetupComplete,
       businessLinkCreated,
+      fetchBookingHistory,
     ]
   );
 
