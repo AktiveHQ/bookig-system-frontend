@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/sheet';
 import {
   ArrowRight,
-  BriefcaseBusiness,
   CalendarDays,
   Copy,
   Link,
@@ -25,7 +24,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { differenceInMinutes, format, isAfter, isSameDay, parseISO } from 'date-fns';
 
-const ACTIVE_BOOKING_STATUSES = ['pending_payment', 'confirmed', 'completed'];
+const PAID_BOOKING_STATUSES = ['confirmed', 'completed'];
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -56,7 +55,7 @@ const Dashboard = () => {
         .filter(
           booking =>
             booking.date === today &&
-            ACTIVE_BOOKING_STATUSES.includes(booking.status),
+            PAID_BOOKING_STATUSES.includes(booking.status),
         )
         .map(booking => ({
           ...booking,
@@ -81,7 +80,7 @@ const Dashboard = () => {
     : todayBookings;
 
   const totalBookings = bookings.filter(booking =>
-    ACTIVE_BOOKING_STATUSES.includes(booking.status),
+    PAID_BOOKING_STATUSES.includes(booking.status),
   ).length;
   const activeServices = appointments.filter(appointment => !appointment.paused).length;
   const activeNotification = notifications?.[0];
@@ -149,10 +148,52 @@ const Dashboard = () => {
       </div>
 
       <nav className="mt-6 space-y-1">
-        <MenuButton icon={<CalendarDays className="h-4 w-4" />} label="Bookings" onClick={() => navigate('/dashboard')} />
-        <MenuButton icon={<BriefcaseBusiness className="h-4 w-4" />} label="Services" onClick={() => navigate('/appointments/create')} />
+        <MenuButton icon={<CalendarDays className="h-4 w-4" />} label="Overview" onClick={() => navigate('/dashboard')} />
+        <MenuButton icon={<CalendarDays className="h-4 w-4" />} label="Bookings" onClick={() => navigate('/dashboard/bookings')} />
         <MenuButton icon={<Settings className="h-4 w-4" />} label="Business settings" onClick={() => navigate('/business/edit')} />
       </nav>
+
+      <div className="mt-6">
+        <div className="mb-2 flex items-center justify-between gap-2 px-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Services</p>
+          <button
+            className="rounded-full border p-1 hover:bg-accent"
+            onClick={() => navigate('/appointments/create')}
+            aria-label="Add service"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div className="space-y-1">
+          {appointments.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-muted-foreground">No services yet.</p>
+          ) : (
+            appointments.slice(0, 6).map(appointment => {
+              const bookingCount = bookings.filter(
+                booking =>
+                  booking.appointmentId === appointment.id &&
+                  booking.date === today &&
+                  PAID_BOOKING_STATUSES.includes(booking.status),
+              ).length;
+              return (
+                <button
+                  key={appointment.id}
+                  className="w-full rounded-xl px-3 py-2 text-left hover:bg-accent"
+                  onClick={() => navigate(`/dashboard/appointment/${appointment.id}`)}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm">{appointment.name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{bookingCount}</span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {appointment.paused ? 'Paused' : 'Active'}
+                  </p>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
 
       <div className="mt-auto pt-6">
         <Button variant="outline" className="w-full justify-start gap-2 rounded-full" onClick={handleLogout}>
@@ -218,10 +259,15 @@ const Dashboard = () => {
               <h2 className="text-lg font-semibold">Today's bookings</h2>
               <p className="text-sm text-muted-foreground">Your operational view for the day.</p>
             </div>
-            <Button size="sm" variant="outline" className="gap-2 rounded-full" onClick={handleCopyLink} disabled={!bookingLink}>
-              <Copy className="h-4 w-4" />
-              Share
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" className="gap-2 rounded-full" onClick={() => navigate('/dashboard/bookings')}>
+                View all
+              </Button>
+              <Button size="sm" variant="outline" className="gap-2 rounded-full" onClick={handleCopyLink} disabled={!bookingLink}>
+                <Copy className="h-4 w-4" />
+                Share
+              </Button>
+            </div>
           </div>
 
           {todayBookings.length === 0 ? (
@@ -277,7 +323,7 @@ const Dashboard = () => {
                 const bookingCount = bookings.filter(
                   booking =>
                     booking.appointmentId === appointment.id &&
-                    ACTIVE_BOOKING_STATUSES.includes(booking.status),
+                    PAID_BOOKING_STATUSES.includes(booking.status),
                 ).length;
                 return (
                   <div key={appointment.id} className="rounded-2xl border p-4">

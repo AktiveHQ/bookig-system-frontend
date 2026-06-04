@@ -14,6 +14,7 @@ import BusinessSetup from "./pages/setup/BusinessSetup";
 import SetupSuccess from "./pages/setup/SetupSuccess";
 import Dashboard from "./pages/dashboard/Dashboard";
 import AppointmentDetail from "./pages/dashboard/AppointmentDetail";
+import BookingsList from "./pages/dashboard/BookingsList";
 import BusinessEdit from "./pages/dashboard/BusinessEdit";
 import CreateAppointment from "./pages/appointments/CreateAppointment";
 import AppointmentCreated from "./pages/appointments/AppointmentCreated";
@@ -49,6 +50,7 @@ const App = () => (
 
               {/* Dashboard */}
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard/bookings" element={<BookingsList />} />
               <Route path="/dashboard/appointment/:id" element={<AppointmentDetail />} />
               <Route path="/business/edit" element={<BusinessEdit />} />
 
