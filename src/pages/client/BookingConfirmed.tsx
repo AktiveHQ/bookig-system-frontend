@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import BackButton from '@/components/shared/BackButton';
-import { CheckCircle, CalendarIcon, Clock } from 'lucide-react';
+import BookingConfirmationCard from '@/components/shared/BookingConfirmationCard';
+import { CheckCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 const API_BASE = (
@@ -10,6 +11,7 @@ const API_BASE = (
 ).replace(/\/$/, '');
 
 const BookingConfirmed = () => {
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const routeState = location.state as {
@@ -28,16 +30,19 @@ const BookingConfirmed = () => {
         date: String(parsed?.date ?? ''),
         time: String(parsed?.time ?? ''),
         total: Number(parsed?.amountToCharge ?? parsed?.total ?? 0),
+        slug: String(parsed?.slug ?? ''),
       };
     } catch {
       return null;
     }
   });
   const state = routeState ?? storedState;
+  const businessSlug = slug || state?.slug;
   const reference = new URLSearchParams(location.search).get('reference');
   const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>(
     reference ? 'sending' : 'idle',
   );
+  const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
 
   useEffect(() => {
     if (!reference) return;
@@ -65,6 +70,28 @@ const BookingConfirmed = () => {
       active = false;
     };
   }, [reference]);
+
+  // Redirect timer - starts at 3 seconds when page loads
+  useEffect(() => {
+    setRedirectCountdown(3);
+  }, []);
+
+  // Countdown effect
+  useEffect(() => {
+    if (redirectCountdown === null || redirectCountdown <= 0) return;
+
+    const timer = setTimeout(() => {
+      setRedirectCountdown(prev => {
+        if (prev === null || prev <= 1) {
+          navigate(businessSlug ? `/booking/${businessSlug}` : '/');
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [redirectCountdown, navigate, businessSlug]);
 
   const formatTime = (t: string) => {
     const [h, m] = t.split(':').map(Number);
@@ -97,7 +124,18 @@ const BookingConfirmed = () => {
               Reference: <span className="font-mono">{reference}</span>
             </p>
           )}
-          <Button className="mt-6 h-12 rounded-full bg-[#020c1a] px-8 text-white hover:bg-[#020c1a]/90" onClick={() => navigate('/')}>
+          {redirectCountdown !== null && (
+            <p className="mt-3 text-xs text-[#020c1a]/60">
+              Redirecting in {redirectCountdown}s...
+            </p>
+          )}
+          <Button 
+            className="mt-6 h-12 rounded-full bg-[#020c1a] px-8 text-white hover:bg-[#020c1a]/90" 
+            onClick={() => {
+              setRedirectCountdown(null);
+              navigate(businessSlug ? `/booking/${businessSlug}` : '/');
+            }}
+          >
             Done
           </Button>
         </div>
@@ -107,51 +145,53 @@ const BookingConfirmed = () => {
 
   return (
     <div className="min-h-screen flex flex-col px-4 py-6 text-[#020c1a] sm:px-6 lg:px-10 lg:py-10 max-w-3xl mx-auto">
-      <BackButton onClick={() => navigate('/')} />
+      <BackButton onClick={() => navigate(businessSlug ? `/booking/${businessSlug}` : '/')} />
 
       <div className="flex-1 flex flex-col items-center justify-center text-center">
-        <h1 className="text-lg font-bold mb-4">Booking confirmed!</h1>
+        <h1 className="text-2xl font-bold mb-6">Appointment Confirmed!</h1>
 
-        <div className="border border-[#020c1a]/10 rounded-xl p-4 w-full text-left shadow-[1px_2px_2px_rgba(0,0,0,0.12)]">
-          <div className="space-y-3">
-              <h3 className="text-sm font-semibold">{state.appointmentName}</h3>
-              <div className="flex items-center gap-2 text-xs text-[#020c1a]/60">
-                <CalendarIcon className="h-4 w-4" />
-                <span>
-                  {state.date ? format(parseISO(state.date), 'EEEE, d MMMM') : 'Date confirmed'}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-[#020c1a]/60">
-                <Clock className="h-4 w-4" />
-                <span>{state.time ? formatTime(state.time) : 'Time confirmed'}</span>
-              </div>
-          </div>
-        </div>
+        {/* Booking Confirmation Card */}
+        <BookingConfirmationCard
+          appointmentName={state.appointmentName}
+          date={state.date}
+          time={state.time}
+          className="mb-6 w-full"
+        />
 
-        <CheckCircle className="h-12 w-12 text-green-600 mt-6" />
-
-        <p className="text-sm font-medium mt-6">
+        <p className="text-sm font-medium mt-6 mb-2">
           A confirmation has been sent to your email.
         </p>
         {emailStatus === 'sending' && (
-          <p className="text-xs text-[#020c1a]/60 mt-2">
+          <p className="text-xs text-[#020c1a]/60 mb-2">
             Finalizing your confirmation email...
           </p>
         )}
         {emailStatus === 'failed' && (
-          <p className="text-xs text-[#020c1a]/60 mt-2">
+          <p className="text-xs text-[#020c1a]/60 mb-2">
             Your payment was received, but we could not resend the confirmation email yet.
           </p>
         )}
+        {redirectCountdown !== null && (
+          <p className="text-xs text-[#020c1a]/60 mb-6">
+            Redirecting in {redirectCountdown}s...
+          </p>
+        )}
 
-        <div className="w-full grid gap-3 mt-8 sm:grid-cols-2">
+        <div className="w-full grid gap-3 mt-6 sm:grid-cols-2">
           <Button
             variant="outline"
             className="w-full h-12 rounded-full border-[#020c1a]/20 text-[#020c1a] hover:bg-[#020c1a]/[0.03] hover:text-[#020c1a] focus-visible:ring-[#020c1a]"
+            onClick={() => setRedirectCountdown(null)}
           >
             Add to calendar
           </Button>
-          <Button className="w-full h-12 rounded-full bg-[#020c1a] text-white hover:bg-[#020c1a]/90" onClick={() => navigate('/')}>
+          <Button 
+            className="w-full h-12 rounded-full bg-[#020c1a] text-white hover:bg-[#020c1a]/90" 
+            onClick={() => {
+              setRedirectCountdown(null);
+              navigate(businessSlug ? `/booking/${businessSlug}` : '/');
+            }}
+          >
             Done
           </Button>
         </div>

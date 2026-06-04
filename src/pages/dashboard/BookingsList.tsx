@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, parseISO, isWithinInterval } from 'date-fns';
 import { ArrowLeft, CalendarDays, Search } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,10 @@ const BookingsList = () => {
     business,
     refreshBookingsForDate,
   } = useData();
+  const [filterType, setFilterType] = useState<'day' | 'week' | 'month' | 'range'>('day');
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [rangeStart, setRangeStart] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [rangeEnd, setRangeEnd] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [serviceFilter, setServiceFilter] = useState('all');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,6 +44,37 @@ const BookingsList = () => {
     [appointments],
   );
 
+  // Calculate date range based on filter type
+  const getDateRange = () => {
+    const currentDate = parseISO(selectedDate);
+    switch (filterType) {
+      case 'day':
+        return { start: selectedDate, end: selectedDate };
+      case 'week': {
+        const weekStart = startOfWeek(currentDate);
+        const weekEnd = endOfWeek(currentDate);
+        return {
+          start: format(weekStart, 'yyyy-MM-dd'),
+          end: format(weekEnd, 'yyyy-MM-dd'),
+        };
+      }
+      case 'month': {
+        const monthStart = startOfMonth(currentDate);
+        const monthEnd = endOfMonth(currentDate);
+        return {
+          start: format(monthStart, 'yyyy-MM-dd'),
+          end: format(monthEnd, 'yyyy-MM-dd'),
+        };
+      }
+      case 'range':
+        return { start: rangeStart, end: rangeEnd };
+      default:
+        return { start: selectedDate, end: selectedDate };
+    }
+  };
+
+  const { start: dateRangeStart, end: dateRangeEnd } = getDateRange();
+
   useEffect(() => {
     if (!business?.slug || appointments.length === 0) return;
 
@@ -48,11 +82,31 @@ const BookingsList = () => {
     const load = async () => {
       setLoading(true);
       try {
-        await Promise.all(
-          appointments.map(appointment =>
-            refreshBookingsForDate(appointment.id, selectedDate),
-          ),
-        );
+        // For day filter, just refresh that date. For other filters, refresh date range
+        if (filterType === 'day') {
+          await Promise.all(
+            appointments.map(appointment =>
+              refreshBookingsForDate(appointment.id, selectedDate),
+            ),
+          );
+        } else {
+          // For week/month/range, refresh all dates in the range
+          const startDate = parseISO(dateRangeStart);
+          const endDate = parseISO(dateRangeEnd);
+          let currentDate = startDate;
+          const datesToRefresh: string[] = [];
+          
+          while (currentDate <= endDate) {
+            datesToRefresh.push(format(currentDate, 'yyyy-MM-dd'));
+            currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000);
+          }
+
+          await Promise.all(
+            appointments.flatMap(appointment =>
+              datesToRefresh.map(date => refreshBookingsForDate(appointment.id, date)),
+            ),
+          );
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -62,13 +116,21 @@ const BookingsList = () => {
     return () => {
       active = false;
     };
-  }, [appointments, business?.slug, refreshBookingsForDate, selectedDate]);
+  }, [appointments, business?.slug, refreshBookingsForDate, selectedDate, filterType, dateRangeStart, dateRangeEnd];
 
   const filteredBookings = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
     return bookings
-      .filter(booking => booking.date === selectedDate)
+      .filter(booking => {
+        const bookingDate = parseISO(booking.date);
+        const rangeStartDate = parseISO(dateRangeStart);
+        const rangeEndDate = parseISO(dateRangeEnd);
+        return isWithinInterval(bookingDate, {
+          start: rangeStartDate,
+          end: new Date(rangeEndDate.getTime() + 24 * 60 * 60 * 1000 - 1), // Include end date
+        });
+      })
       .filter(booking => PAID_BOOKING_STATUSES.includes(booking.status))
       .filter(booking =>
         serviceFilter === 'all' ? true : booking.appointmentId === serviceFilter,
@@ -81,8 +143,11 @@ const BookingsList = () => {
           .toLowerCase()
           .includes(normalizedQuery);
       })
-      .sort((a, b) => a.time.localeCompare(b.time));
-  }, [appointmentsById, bookings, query, selectedDate, serviceFilter]);
+      .sort((a, b) => {
+        const dateCompare = a.date.localeCompare(b.date);
+        return dateCompare !== 0 ? dateCompare : a.time.localeCompare(b.time);
+      });
+  }, [appointmentsById, bookings, query, dateRangeStart, dateRangeEnd, serviceFilter]);
 
   const formatTime = (time: string) => {
     const [h, m] = time.split(':').map(Number);
@@ -119,7 +184,19 @@ const BookingsList = () => {
           </Button>
         </header>
 
-        <section className="mt-5 grid gap-3 md:grid-cols-[180px_220px_minmax(0,1fr)]">
+        <section className="mt-5 grid gap-3 md:grid-cols-[140px_180px_220px_minmax(0,1fr)]">
+          <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+            <SelectTrigger className="h-11 rounded-xl">
+              <SelectValue placeholder="Filter type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="day">Per Day</SelectItem>
+              <SelectItem value="week">Per Week</SelectItem>
+              <SelectItem value="month">Per Month</SelectItem>
+              <SelectItem value="range">Date Range</SelectItem>
+            </SelectContent>
+          </Select>
+
           <div className="relative">
             <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -130,36 +207,88 @@ const BookingsList = () => {
             />
           </div>
 
-          <Select value={serviceFilter} onValueChange={setServiceFilter}>
-            <SelectTrigger className="h-11 rounded-xl">
-              <SelectValue placeholder="All services" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All services</SelectItem>
-              {appointments.map(appointment => (
-                <SelectItem key={appointment.id} value={appointment.id}>
-                  {appointment.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {filterType === 'range' && (
+            <div className="relative">
+              <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="date"
+                value={rangeEnd}
+                onChange={event => setRangeEnd(event.target.value)}
+                className="h-11 rounded-xl pl-9"
+                placeholder="To"
+              />
+            </div>
+          )}
 
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={event => setQuery(event.target.value)}
-              placeholder="Search client, email, or service"
-              className="h-11 rounded-xl pl-9"
-            />
-          </div>
+          {filterType === 'range' && (
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={event => setQuery(event.target.value)}
+                placeholder="Search client, email, or service"
+                className="h-11 rounded-xl pl-9"
+              />
+            </div>
+          )}
+
+          {filterType !== 'range' && (
+            <>
+              <Select value={serviceFilter} onValueChange={setServiceFilter}>
+                <SelectTrigger className="h-11 rounded-xl">
+                  <SelectValue placeholder="All services" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All services</SelectItem>
+                  {appointments.map(appointment => (
+                    <SelectItem key={appointment.id} value={appointment.id}>
+                      {appointment.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={event => setQuery(event.target.value)}
+                  placeholder="Search client, email, or service"
+                  className="h-11 rounded-xl pl-9"
+                />
+              </div>
+            </>
+          )}
+
+          {filterType === 'range' && (
+            <Select value={serviceFilter} onValueChange={setServiceFilter}>
+              <SelectTrigger className="h-11 rounded-xl">
+                <SelectValue placeholder="All services" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All services</SelectItem>
+                {appointments.map(appointment => (
+                  <SelectItem key={appointment.id} value={appointment.id}>
+                    {appointment.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </section>
 
         <section className="mt-5 overflow-hidden rounded-xl border">
           <div className="flex items-center justify-between border-b px-4 py-3">
-            <p className="text-sm font-medium">
-              {filteredBookings.length} booking{filteredBookings.length === 1 ? '' : 's'}
-            </p>
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-medium">
+                {filteredBookings.length} booking{filteredBookings.length === 1 ? '' : 's'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {dateRangeStart === dateRangeEnd
+                  ? `${format(parseISO(dateRangeStart), 'MMM d, yyyy')}`
+                  : `${format(parseISO(dateRangeStart), 'MMM d')} - ${format(parseISO(dateRangeEnd), 'MMM d, yyyy')}`}
+              </p>
+            </div>
             {loading && <p className="text-xs text-muted-foreground">Refreshing...</p>}
           </div>
 
