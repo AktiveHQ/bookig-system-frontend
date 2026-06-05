@@ -59,7 +59,9 @@ const toBusiness = (raw: any): Business => ({
     raw?.feePolicy === 'OWNER_PAYS' || raw?.feeHandling === 'business' ? 'business' : 'customer',
   accountHolderName: String(raw?.accountHolderName ?? ''),
   bankName: String(raw?.bankName ?? ''),
+  bankCode: raw?.bankCode ? String(raw.bankCode) : '',
   accountNumber: String(raw?.accountNumber ?? ''),
+  paystackSubaccountCode: raw?.paystackSubaccountCode ? String(raw.paystackSubaccountCode) : null,
   slug: String(raw?.bookingSlug ?? raw?.slug ?? ''),
 });
 
@@ -406,6 +408,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       idDocumentData: b.idDocumentData ?? null,
       cacDocumentData: b.cacDocumentData ?? null,
       bankName: b.bankName || null,
+      bankCode: b.bankCode || null,
       accountNumber: b.accountNumber || null,
       accountHolderName: b.accountHolderName || null,
       feePolicy: toFeePolicy(b.feeHandling),

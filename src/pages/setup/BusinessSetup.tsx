@@ -218,7 +218,7 @@ const BusinessSetup = () => {
       idVerificationType: idVerificationType ? idVerificationType : null,
       idDocumentData: idDocumentData ? idDocumentData : null,
       cacDocumentData: cacDocumentData ? cacDocumentData : null,
-      feeHandling, accountHolderName: accountHolder, bankName, accountNumber,
+      feeHandling, accountHolderName: accountHolder, bankName, bankCode, accountNumber,
       slug,
     };
     console.log('[BusinessSetup] Finish setup payload:', businessPayload);

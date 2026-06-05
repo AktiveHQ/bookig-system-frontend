@@ -16,7 +16,9 @@ export interface Business {
   feeHandling: 'customer' | 'business';
   accountHolderName: string;
   bankName: string;
+  bankCode?: string;
   accountNumber: string;
+  paystackSubaccountCode?: string | null;
   slug: string;
 }
 

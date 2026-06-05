@@ -67,6 +67,7 @@ const BusinessEdit = () => {
     setCacDocumentData(business.cacDocumentData || '');
     setAccountHolder(business.accountHolderName);
     setBankName(business.bankName);
+    setBankCode(business.bankCode || '');
     setAccountNumber(business.accountNumber);
   }, [business]);
 
@@ -158,6 +159,7 @@ const BusinessEdit = () => {
       feeHandling,
       accountHolderName: accountHolder,
       bankName,
+      bankCode,
       accountNumber,
     });
     setSaving(false);
