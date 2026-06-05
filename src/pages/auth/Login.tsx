@@ -98,6 +98,19 @@ const Login = () => {
           </p>
         </div>
       </div>
+
+      <footer className="border-t pt-4 text-center text-xs text-muted-foreground">
+        <p>Powered by AktiveHQ</p>
+        <div className="mt-2 flex items-center justify-center gap-3">
+          <button className="hover:text-foreground" onClick={() => navigate('/privacy-policy')}>
+            Privacy Policy
+          </button>
+          <span aria-hidden="true">|</span>
+          <button className="hover:text-foreground" onClick={() => navigate('/terms')}>
+            Terms
+          </button>
+        </div>
+      </footer>
     </div>
   );
 };

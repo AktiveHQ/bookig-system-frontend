@@ -39,6 +39,7 @@ const getResponseErrorMessage = async (response: Response, fallback: string) => 
       const json = await response.json();
       const message =
         json?.message ||
+        json?.error?.message ||
         json?.error ||
         json?.details ||
         json?.detail;

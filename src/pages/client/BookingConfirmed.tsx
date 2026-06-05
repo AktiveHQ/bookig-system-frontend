@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import BackButton from '@/components/shared/BackButton';
 import BookingConfirmationCard from '@/components/shared/BookingConfirmationCard';
 import { CheckCircle } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
 
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
@@ -42,7 +40,6 @@ const BookingConfirmed = () => {
   const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>(
     reference ? 'sending' : 'idle',
   );
-  const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null);
 
   useEffect(() => {
     if (!reference) return;
@@ -71,35 +68,6 @@ const BookingConfirmed = () => {
     };
   }, [reference]);
 
-  // Redirect timer - starts at 5 seconds when page loads
-  useEffect(() => {
-    setRedirectCountdown(5);
-  }, []);
-
-  // Countdown effect
-  useEffect(() => {
-    if (redirectCountdown === null || redirectCountdown <= 0) return;
-
-    const timer = setTimeout(() => {
-      setRedirectCountdown(prev => {
-        if (prev === null || prev <= 1) {
-          navigate(businessSlug ? `/booking/${businessSlug}` : '/');
-          return null;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [redirectCountdown, navigate, businessSlug]);
-
-  const formatTime = (t: string) => {
-    const [h, m] = t.split(':').map(Number);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const hour = h % 12 || 12;
-    return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
-  };
-
   if (!state) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 text-[#020c1a]">
@@ -109,11 +77,6 @@ const BookingConfirmed = () => {
           <p className="mt-2 text-sm text-[#020c1a]/60">
             Your appointment has been successfully scheduled. A confirmation email with your booking details has been sent to your inbox.
           </p>
-          {emailStatus === 'sending' && (
-            <p className="mt-2 text-xs text-[#020c1a]/60">
-              Finalizing your confirmation email...
-            </p>
-          )}
           {emailStatus === 'failed' && (
             <p className="mt-2 text-xs text-[#020c1a]/60">
               Your payment was received, but we could not resend the confirmation email yet.
@@ -124,17 +87,9 @@ const BookingConfirmed = () => {
               Reference: <span className="font-mono">{reference}</span>
             </p>
           )}
-          {redirectCountdown !== null && (
-            <p className="mt-3 text-xs text-[#020c1a]/60">
-              Redirecting in {redirectCountdown}s...
-            </p>
-          )}
           <Button 
             className="mt-6 h-12 rounded-full bg-[#020c1a] px-8 text-white hover:bg-[#020c1a]/90" 
-            onClick={() => {
-              setRedirectCountdown(null);
-              navigate(businessSlug ? `/booking/${businessSlug}` : '/');
-            }}
+            onClick={() => navigate(businessSlug ? `/booking/${businessSlug}` : '/')}
           >
             Done
           </Button>
@@ -144,58 +99,43 @@ const BookingConfirmed = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col px-4 py-6 text-[#020c1a] sm:px-6 lg:px-10 lg:py-10 max-w-3xl mx-auto">
-      <BackButton onClick={() => navigate(businessSlug ? `/booking/${businessSlug}` : '/')} />
+    <div className="min-h-screen px-5 py-12 text-[#020c1a] sm:px-6">
+      <main className="mx-auto flex min-h-[calc(100vh-6rem)] w-full max-w-md flex-col items-center justify-center text-center">
+        <CheckCircle className="h-14 w-14 text-green-600" />
+        <h1 className="mt-6 text-2xl font-bold">Booking confirmed</h1>
+        <p className="mt-3 text-sm leading-6 text-[#020c1a]/60">
+          Your appointment has been scheduled. A confirmation has been sent to your email.
+        </p>
 
-      <div className="flex-1 flex flex-col items-center justify-center text-center">
-        <h1 className="text-2xl font-bold mb-6">Appointment Confirmed!</h1>
-
-        {/* Booking Confirmation Card */}
         <BookingConfirmationCard
           appointmentName={state.appointmentName}
           date={state.date}
           time={state.time}
-          className="mb-6 w-full"
+          className="mt-10 w-full border-[#020c1a]"
         />
 
-        <p className="text-sm font-medium mt-6 mb-2">
-          A confirmation has been sent to your email.
-        </p>
-        {emailStatus === 'sending' && (
-          <p className="text-xs text-[#020c1a]/60 mb-2">
-            Finalizing your confirmation email...
-          </p>
-        )}
         {emailStatus === 'failed' && (
-          <p className="text-xs text-[#020c1a]/60 mb-2">
+          <p className="mt-5 text-xs text-[#020c1a]/60">
             Your payment was received, but we could not resend the confirmation email yet.
           </p>
         )}
-        {redirectCountdown !== null && (
-          <p className="text-xs text-[#020c1a]/60 mb-6">
-            Redirecting in {redirectCountdown}s...
-          </p>
-        )}
 
-        <div className="w-full grid gap-3 mt-6 sm:grid-cols-2">
+        <div className="mt-10 grid w-full gap-3 sm:grid-cols-2">
           <Button
             variant="outline"
             className="w-full h-12 rounded-full border-[#020c1a]/20 text-[#020c1a] hover:bg-[#020c1a]/[0.03] hover:text-[#020c1a] focus-visible:ring-[#020c1a]"
-            onClick={() => setRedirectCountdown(null)}
+            onClick={() => navigate(businessSlug ? `/booking/${businessSlug}` : '/')}
           >
-            Add to calendar
+            Book another appointment
           </Button>
           <Button 
             className="w-full h-12 rounded-full bg-[#020c1a] text-white hover:bg-[#020c1a]/90" 
-            onClick={() => {
-              setRedirectCountdown(null);
-              navigate(businessSlug ? `/booking/${businessSlug}` : '/');
-            }}
+            onClick={() => navigate(businessSlug ? `/booking/${businessSlug}` : '/')}
           >
             Done
           </Button>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
