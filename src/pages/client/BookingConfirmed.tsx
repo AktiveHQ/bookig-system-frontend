@@ -71,9 +71,9 @@ const BookingConfirmed = () => {
     };
   }, [reference]);
 
-  // Redirect timer - starts at 3 seconds when page loads
+  // Redirect timer - starts at 5 seconds when page loads
   useEffect(() => {
-    setRedirectCountdown(3);
+    setRedirectCountdown(5);
   }, []);
 
   // Countdown effect
