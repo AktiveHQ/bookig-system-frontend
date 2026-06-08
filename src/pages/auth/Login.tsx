@@ -9,7 +9,7 @@ import { ArrowRight } from 'lucide-react';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,6 +25,27 @@ const Login = () => {
         toast({ title: 'Account does not exist', description: 'Create an account to get started.', variant: 'destructive' });
       } else {
         toast({ title: 'Login failed', description: error?.message || 'Please try again.', variant: 'destructive' });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      await loginWithGoogle();
+      navigate('/dashboard');
+    } catch (error: any) {
+      if (error?.code === 'auth/backend-user-not-found') {
+        toast({
+          title: 'Account not registered',
+          description: 'Sign up with Google first, then you can continue here.',
+          variant: 'destructive',
+        });
+        navigate('/signup');
+      } else {
+        toast({ title: 'Google login failed', description: error?.message || 'Please try again.', variant: 'destructive' });
       }
     } finally {
       setLoading(false);
@@ -84,6 +105,16 @@ const Login = () => {
               <ArrowRight className="h-4 w-4" />
             </Button>
           </form>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-12 rounded-full"
+            disabled={loading}
+            onClick={handleGoogleLogin}
+          >
+            Continue with Google
+          </Button>
 
           <p className="text-center text-sm text-muted-foreground">
             Don't have an account?{' '}

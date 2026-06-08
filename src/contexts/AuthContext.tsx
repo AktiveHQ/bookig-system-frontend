@@ -15,6 +15,9 @@ import { auth } from '@/lib/firebase';
 const SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
 const INACTIVITY_CHECK_INTERVAL_MS = 5 * 60 * 1000; // Check every 5 minutes
 const SESSION_START_TIME_KEY = 'akhq:sessionStartTime';
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
+).trim().replace(/\/$/, '');
 
 interface AuthContextType {
   user: User | null;
@@ -24,6 +27,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  signupWithGoogle: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -101,6 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signup = async (email: string, password: string, displayName: string) => {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(cred.user, { displayName });
+    await registerBackendOwner(cred.user);
     // Set session start time
     try {
       sessionStorage.setItem(SESSION_START_TIME_KEY, Date.now().toString());
@@ -125,7 +130,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    const credential = await signInWithPopup(auth, provider);
+    const isRegistered = await checkBackendOwnerExists(credential.user);
+    if (!isRegistered) {
+      await signOut(auth);
+      throw Object.assign(new Error('Account is not registered. Please sign up with Google first.'), {
+        code: 'auth/backend-user-not-found',
+      });
+    }
     // Set session start time
     try {
       sessionStorage.setItem(SESSION_START_TIME_KEY, Date.now().toString());
@@ -134,9 +146,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signupWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    const credential = await signInWithPopup(auth, provider);
+    await registerBackendOwner(credential.user);
+    try {
+      sessionStorage.setItem(SESSION_START_TIME_KEY, Date.now().toString());
+    } catch (error) {
+      console.error('Failed to set session start time', error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, resetPassword, loginWithGoogle }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, resetPassword, loginWithGoogle, signupWithGoogle }}>
       {children}
     </AuthContext.Provider>
   );
 };
+
+async function getBearerHeader(user: User) {
+  const token = await user.getIdToken();
+  return { Authorization: `Bearer ${token}` };
+}
+
+async function checkBackendOwnerExists(user: User) {
+  const response = await fetch(`${API_BASE}/dashboard/me`, {
+    headers: await getBearerHeader(user),
+  });
+  if (response.ok) return true;
+  if (response.status === 401 || response.status === 404) return false;
+  throw new Error('Could not verify your AktiveHQ account. Please try again.');
+}
+
+async function registerBackendOwner(user: User) {
+  const response = await fetch(`${API_BASE}/dashboard/me/register`, {
+    method: 'POST',
+    headers: await getBearerHeader(user),
+  });
+  if (!response.ok) {
+    throw new Error('Could not register your account in AktiveHQ. Please try again.');
+  }
+}

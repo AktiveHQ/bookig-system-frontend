@@ -259,7 +259,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       let mappedBusiness: Business | null = null;
       try {
-        const meBusinessRaw = await apiFetch('/dashboard/businesses/me');
+        const meBusinessRaw = await apiFetch('/dashboard/businesses/me?view=summary');
         mappedBusiness = toBusiness(meBusinessRaw);
         setBusinessState(mappedBusiness);
         setHasSetupComplete(Boolean(mappedBusiness.id || mappedBusiness.slug));
@@ -276,49 +276,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const mappedAppointments = serviceList.map((s: any) => toAppointment(s, mappedBusiness.id));
       setAppointments(mappedAppointments);
       setBusinessLinkCreated(mappedAppointments.length > 0);
-
-      try {
-        const availabilityByServiceId = await Promise.all(
-          mappedAppointments.map(async (apt) => {
-            try {
-              const result = await apiFetch(`/dashboard/services/${apt.id}/availability`);
-              const rules = Array.isArray(result?.rules) ? result.rules : [];
-              const first = rules[0];
-              if (!first) return null;
-              return {
-                id: apt.id,
-                availableDays: Array.isArray(first.daysOfWeek)
-                  ? first.daysOfWeek.map(Number)
-                  : apt.availableDays,
-                startTime: typeof first.startTimeLocal === 'string' ? first.startTimeLocal : apt.startTime,
-                endTime: typeof first.endTimeLocal === 'string' ? first.endTimeLocal : apt.endTime,
-              };
-            } catch {
-              return null;
-            }
-          })
-        );
-
-        const byId = new Map(
-          availabilityByServiceId.filter(Boolean).map((row: any) => [row.id, row])
-        );
-        if (byId.size > 0) {
-          setAppointments(prev =>
-            prev.map(apt => {
-              const update = byId.get(apt.id);
-              if (!update) return apt;
-              return {
-                ...apt,
-                availableDays: update.availableDays,
-                startTime: update.startTime,
-                endTime: update.endTime,
-              };
-            })
-          );
-        }
-      } catch {
-        // keep existing availability if refresh cannot hydrate rules
-      }
 
       const today = new Date().toISOString().slice(0, 10);
       const bookingsByService = await Promise.all(

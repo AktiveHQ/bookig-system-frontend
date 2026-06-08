@@ -9,7 +9,7 @@ import { ArrowRight } from 'lucide-react';
 
 const Signup = () => {
   const navigate = useNavigate();
-  const { signup } = useAuth();
+  const { signup, signupWithGoogle } = useAuth();
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -33,6 +33,19 @@ const Signup = () => {
       navigate('/setup');
     } catch (error: any) {
       toast({ title: 'Signup failed', description: error?.message || 'Please try again.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignup = async () => {
+    setLoading(true);
+    try {
+      await signupWithGoogle();
+      toast({ title: 'Account created!', description: 'Let\'s set up your business.' });
+      navigate('/setup');
+    } catch (error: any) {
+      toast({ title: 'Google signup failed', description: error?.message || 'Please try again.', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -109,6 +122,16 @@ const Signup = () => {
               <ArrowRight className="h-4 w-4" />
             </Button>
           </form>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-12 rounded-full"
+            disabled={loading}
+            onClick={handleGoogleSignup}
+          >
+            Sign up with Google
+          </Button>
 
           <p className="text-center text-sm text-muted-foreground">
             Already have an account?{' '}

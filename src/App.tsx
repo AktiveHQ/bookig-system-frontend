@@ -2,9 +2,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DataProvider } from "@/contexts/DataContext";
+import AppLayout from "@/components/dashboard/AppLayout";
+import { useAuth } from "@/contexts/AuthContext";
 
 import Welcome from "./pages/auth/Welcome";
 import Login from "./pages/auth/Login";
@@ -29,6 +31,42 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+const ProtectedAppLayout = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <AppLayout>
+      <Outlet />
+    </AppLayout>
+  );
+};
+
+const ProtectedRoute = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  return user ? <Outlet /> : <Navigate to="/login" replace />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -44,19 +82,24 @@ const App = () => (
               <Route path="/signup" element={<Signup />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
 
-              {/* Business Setup */}
-              <Route path="/setup" element={<BusinessSetup />} />
-              <Route path="/setup/success" element={<SetupSuccess />} />
+              <Route element={<ProtectedRoute />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+              </Route>
 
-              {/* Dashboard */}
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/dashboard/bookings" element={<BookingsList />} />
-              <Route path="/dashboard/appointment/:id" element={<AppointmentDetail />} />
-              <Route path="/business/edit" element={<BusinessEdit />} />
+              <Route element={<ProtectedAppLayout />}>
+                {/* Business Setup */}
+                <Route path="/setup" element={<BusinessSetup />} />
+                <Route path="/setup/success" element={<SetupSuccess />} />
 
-              {/* Appointments */}
-              <Route path="/appointments/create" element={<CreateAppointment />} />
-              <Route path="/appointments/created/:id" element={<AppointmentCreated />} />
+                {/* Dashboard */}
+                <Route path="/dashboard/bookings" element={<BookingsList />} />
+                <Route path="/dashboard/appointment/:id" element={<AppointmentDetail />} />
+                <Route path="/business/edit" element={<BusinessEdit />} />
+
+                {/* Appointments */}
+                <Route path="/appointments/create" element={<CreateAppointment />} />
+                <Route path="/appointments/created/:id" element={<AppointmentCreated />} />
+              </Route>
 
               {/* Admin */}
               <Route path="/admin" element={<AdminDashboard />} />
