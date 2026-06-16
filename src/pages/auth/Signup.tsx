@@ -9,7 +9,7 @@ import { ArrowRight } from 'lucide-react';
 
 const Signup = () => {
   const navigate = useNavigate();
-  const { signup, signupWithGoogle } = useAuth();
+  const { signup, signupWithGoogle, getPostAuthRedirect } = useAuth();
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -30,7 +30,7 @@ const Signup = () => {
     try {
       await signup(email, password, fullName);
       toast({ title: 'Account created!', description: 'Let\'s set up your business.' });
-      navigate('/setup');
+      navigate(await getPostAuthRedirect());
     } catch (error: any) {
       toast({ title: 'Signup failed', description: error?.message || 'Please try again.', variant: 'destructive' });
     } finally {
@@ -43,7 +43,7 @@ const Signup = () => {
     try {
       await signupWithGoogle();
       toast({ title: 'Account created!', description: 'Let\'s set up your business.' });
-      navigate('/setup');
+      navigate(await getPostAuthRedirect());
     } catch (error: any) {
       toast({ title: 'Google signup failed', description: error?.message || 'Please try again.', variant: 'destructive' });
     } finally {

@@ -120,7 +120,7 @@ const BusinessSetup = () => {
         title: 'Setup saved',
         description: 'You can come back later and continue from this device.',
       });
-      navigate('/');
+      navigate('/dashboard');
     } catch (error) {
       console.error('[BusinessSetup] Failed to save setup draft:', error);
       toast({
@@ -213,7 +213,10 @@ const BusinessSetup = () => {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const businessPayload = {
       id: crypto.randomUUID(),
-      name, description, country, city, address, email, phone,
+      name,
+      description,
+      businessDescription: description,
+      country, city, address, email, phone,
       headerImageUrl: bookingImage ? bookingImage : null,
       idVerificationType: idVerificationType ? idVerificationType : null,
       idDocumentData: idDocumentData ? idDocumentData : null,
@@ -382,7 +385,7 @@ const BusinessSetup = () => {
                 <Input value={name} onChange={e => setName(e.target.value)} className="h-12 rounded-xl" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Description</label>
+                <label className="text-sm font-medium">Business Description</label>
                 <Textarea value={description} onChange={e => setDescription(e.target.value)} className="rounded-xl min-h-[80px]" />
               </div>
               <div className="space-y-1.5">
@@ -394,7 +397,7 @@ const BusinessSetup = () => {
                 <Input value={phone} onChange={e => setPhone(e.target.value)} className="h-12 rounded-xl" />
               </div>
             </div>
-            <Button onClick={goNext} className="w-full h-12 rounded-full gap-2" disabled={!name || !email}>
+            <Button onClick={goNext} className="w-full h-12 rounded-full gap-2" disabled={!name || !description.trim() || !email}>
               Get Started <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
@@ -519,7 +522,7 @@ const BusinessSetup = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Profile/Header image (optional)</label>
+                <label className="text-sm font-medium">Business Photo or logo</label>
                 <div
                   className="border-2 border-dashed rounded-xl min-h-40 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-accent/50 transition-colors p-4"
                   onClick={() => fileInputRef.current?.click()}
@@ -534,7 +537,7 @@ const BusinessSetup = () => {
                     <Upload className="h-8 w-8 text-muted-foreground" />
                   )}
                   <p className="text-sm text-muted-foreground text-center">
-                    {bookingImage ? 'Tap to change image' : 'Upload profile/header image'}
+                    {bookingImage ? 'Tap to change image' : 'Upload business photo or logo'}
                   </p>
                   <input
                     ref={fileInputRef}
@@ -545,7 +548,7 @@ const BusinessSetup = () => {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  This is what users will see on your public booking page.
+                  This image appears at on your public booking page.
                 </p>
                 {bookingImage && (
                   <Button
@@ -563,7 +566,7 @@ const BusinessSetup = () => {
             <Button
               onClick={goNext}
               className="w-full h-12 rounded-full gap-2"
-              disabled={!idVerificationType}
+              disabled={!idVerificationType || !bookingImage}
             >
               Next <ArrowRight className="h-4 w-4" />
             </Button>

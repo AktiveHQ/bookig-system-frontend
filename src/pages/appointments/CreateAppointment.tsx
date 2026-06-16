@@ -192,7 +192,9 @@ const CreateAppointment = () => {
 
         <div>
           <p className="text-sm font-semibold mb-1">Service Duration</p>
-          <p className="text-xs text-muted-foreground mb-3">This controls how many bookings you can take per day</p>
+          <p className="text-xs text-muted-foreground mb-3">
+            Include any buffer time before or after the appointment for cleanup, reset, or travel between clients.
+          </p>
           <div className="flex gap-2 flex-wrap">
             {DURATION_OPTIONS.map(d => (
               <button

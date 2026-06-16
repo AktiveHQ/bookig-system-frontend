@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 type PublicBusiness = {
   name: string;
   description?: string;
+  businessDescription?: string;
   address?: string;
   headerImageUrl?: string;
 };
@@ -82,6 +83,13 @@ const BusinessPage = () => {
         setBusiness({
           name: String(businessJson?.name ?? ''),
           description: businessJson?.description ? String(businessJson.description) : '',
+          businessDescription: businessJson?.businessDescription
+            ? String(businessJson.businessDescription)
+            : businessJson?.business_description
+              ? String(businessJson.business_description)
+              : businessJson?.description
+                ? String(businessJson.description)
+                : '',
           address: businessJson?.address ? String(businessJson.address) : '',
           headerImageUrl: businessJson?.headerImageUrl ? String(businessJson.headerImageUrl) : '',
         });
@@ -209,6 +217,9 @@ const BusinessPage = () => {
           </div>
           <div className="mt-7 text-left">
             <h1 className="text-lg font-bold text-[#020c1a]">{business.name}</h1>
+            {business.businessDescription && (
+              <p className="mt-3 text-sm leading-6 text-[#020c1a]/75">{business.businessDescription}</p>
+            )}
             <p className="mt-1 text-sm text-[#020c1a]/60">{business.address}</p>
           </div>
         </div>

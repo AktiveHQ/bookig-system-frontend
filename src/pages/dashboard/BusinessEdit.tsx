@@ -56,7 +56,7 @@ const BusinessEdit = () => {
   useEffect(() => {
     if (!business) return;
     setName(business.name);
-    setDescription(business.description);
+    setDescription(business.businessDescription || business.description);
     setEmail(business.email);
     setPhone(business.phone || '');
     setCity(business.city);
@@ -147,6 +147,7 @@ const BusinessEdit = () => {
       ...business,
       name,
       description,
+      businessDescription: description,
       email,
       phone: phone || undefined,
       country,

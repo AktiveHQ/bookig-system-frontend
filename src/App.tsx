@@ -89,6 +89,7 @@ const App = () => (
               <Route element={<ProtectedAppLayout />}>
                 {/* Business Setup */}
                 <Route path="/setup" element={<BusinessSetup />} />
+                <Route path="/onboarding" element={<BusinessSetup />} />
                 <Route path="/setup/success" element={<SetupSuccess />} />
 
                 {/* Dashboard */}

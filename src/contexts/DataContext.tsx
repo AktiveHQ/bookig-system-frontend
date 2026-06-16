@@ -38,12 +38,13 @@ const API_BASE = (
 ).trim().replace(/\/$/, '');
 
 const AUTO_REFRESH_INTERVAL_MS = 2 * 60 * 1000;
-const FORM_ROUTES = ['/setup', '/business/edit', '/appointments/create'];
+const FORM_ROUTES = ['/setup', '/onboarding', '/business/edit', '/appointments/create'];
 
 const toBusiness = (raw: any): Business => ({
   id: String(raw?.id ?? ''),
   name: String(raw?.name ?? ''),
-  description: String(raw?.description ?? ''),
+  description: String(raw?.description ?? raw?.businessDescription ?? raw?.business_description ?? ''),
+  businessDescription: String(raw?.businessDescription ?? raw?.business_description ?? raw?.description ?? ''),
   country: String(raw?.country ?? ''),
   city: String(raw?.city ?? ''),
   address: String(raw?.address ?? ''),
@@ -349,6 +350,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const createPayload = {
       name: b.name,
       description: b.description,
+      businessDescription: b.businessDescription || b.description,
       contactEmail: b.email,
       country: b.country || null,
       feePolicy: toFeePolicy(b.feeHandling),
@@ -360,6 +362,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       address: b.address,
       contactEmail: b.email,
       contactPhone: b.phone,
+      businessDescription: b.businessDescription || b.description,
       headerImageUrl: b.headerImageUrl,
       idVerificationType: b.idVerificationType ?? null,
       idDocumentData: b.idDocumentData ?? null,

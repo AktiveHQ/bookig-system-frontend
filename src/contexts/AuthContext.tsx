@@ -28,6 +28,7 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   signupWithGoogle: () => Promise<void>;
+  getPostAuthRedirect: () => Promise<'/dashboard' | '/onboarding'>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -125,7 +126,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const resetPassword = async (email: string) => {
-    await sendPasswordResetEmail(auth, email);
+    await sendPasswordResetEmail(auth, email, {
+      url: `${window.location.origin}/login`,
+      handleCodeInApp: false,
+    });
   };
 
   const loginWithGoogle = async () => {
@@ -157,8 +161,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const getPostAuthRedirect = async (): Promise<'/dashboard' | '/onboarding'> => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return '/onboarding';
+    const hasBusiness = await checkBackendBusinessExists(currentUser);
+    return hasBusiness ? '/dashboard' : '/onboarding';
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, resetPassword, loginWithGoogle, signupWithGoogle }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, resetPassword, loginWithGoogle, signupWithGoogle, getPostAuthRedirect }}>
       {children}
     </AuthContext.Provider>
   );
@@ -186,4 +197,14 @@ async function registerBackendOwner(user: User) {
   if (!response.ok) {
     throw new Error('Could not register your account in AktiveHQ. Please try again.');
   }
+}
+
+async function checkBackendBusinessExists(user: User) {
+  const response = await fetch(`${API_BASE}/dashboard/businesses/me?view=summary`, {
+    headers: await getBearerHeader(user),
+  });
+  if (response.ok) return true;
+  if (response.status === 404) return false;
+  if (response.status === 401) return false;
+  throw new Error('Could not verify your business setup status. Please try again.');
 }

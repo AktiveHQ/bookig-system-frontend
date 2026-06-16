@@ -17,6 +17,7 @@ const BookingConfirmed = () => {
     date: string;
     time: string;
     total: number;
+    slug?: string;
   } | null;
   const [storedState] = useState(() => {
     try {

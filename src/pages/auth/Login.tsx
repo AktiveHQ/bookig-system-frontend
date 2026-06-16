@@ -9,7 +9,7 @@ import { ArrowRight } from 'lucide-react';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, getPostAuthRedirect } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,7 @@ const Login = () => {
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/dashboard');
+      navigate(await getPostAuthRedirect());
     } catch (error: any) {
       if (error?.code === 'auth/user-not-found') {
         toast({ title: 'Account does not exist', description: 'Create an account to get started.', variant: 'destructive' });
@@ -35,7 +35,7 @@ const Login = () => {
     setLoading(true);
     try {
       await loginWithGoogle();
-      navigate('/dashboard');
+      navigate(await getPostAuthRedirect());
     } catch (error: any) {
       if (error?.code === 'auth/backend-user-not-found') {
         toast({
