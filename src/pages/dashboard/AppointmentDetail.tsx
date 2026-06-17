@@ -86,15 +86,7 @@ const AppointmentDetail = () => {
   };
 
   const handleEdit = () => {
-    if (hasFutureBookings) {
-      toast({
-        title: 'Cannot edit',
-        description: 'This appointment has active bookings. Wait until all booked days have passed.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    toast({ title: 'Edit functionality', description: 'Edit form coming soon.' });
+    navigate(`/appointments/edit/${appointment.id}`);
   };
 
   const formatTime = (t: string) => {
@@ -151,7 +143,7 @@ const AppointmentDetail = () => {
       </div>
 
       <div className="flex gap-3 mt-6 flex-wrap">
-        <Button variant="outline" className="gap-2 rounded-full" onClick={handleEdit} disabled={hasFutureBookings}>
+        <Button variant="outline" className="gap-2 rounded-full" onClick={handleEdit}>
           <Pencil className="h-4 w-4" /> Edit
         </Button>
         <Button variant="outline" className="gap-2 rounded-full" onClick={handlePause}>
@@ -164,7 +156,7 @@ const AppointmentDetail = () => {
       </div>
       {hasFutureBookings && (
         <p className="text-xs text-muted-foreground mt-2">
-          Edit and delete are disabled while there are active bookings on upcoming days.
+          Delete is disabled while there are active bookings on upcoming days.
         </p>
       )}
     </div>

@@ -457,6 +457,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       priceAmount: a.price,
       durationMinutes: a.duration,
       maxBookingsPerSlot: a.maxBookingsPerSlot,
+      messageForClients: a.messageForClients || null,
     };
 
     void (async () => {
@@ -499,6 +500,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       priceAmount: a.price,
       durationMinutes: a.duration,
       maxBookingsPerSlot: a.maxBookingsPerSlot,
+      messageForClients: a.messageForClients || null,
     };
 
     void (async () => {

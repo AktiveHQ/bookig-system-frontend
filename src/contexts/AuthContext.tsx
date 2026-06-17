@@ -126,10 +126,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const resetPassword = async (email: string) => {
-    await sendPasswordResetEmail(auth, email, {
-      url: `${window.location.origin}/login`,
-      handleCodeInApp: false,
-    });
+    const normalizedEmail = email.trim();
+    const actionUrl =
+      import.meta.env.VITE_FIREBASE_PASSWORD_RESET_URL?.trim() ||
+      `${window.location.origin}/login`;
+
+    try {
+      await sendPasswordResetEmail(auth, normalizedEmail, {
+        url: actionUrl,
+        handleCodeInApp: false,
+      });
+    } catch (error: any) {
+      if (error?.code !== 'auth/unauthorized-continue-uri') {
+        throw error;
+      }
+
+      await sendPasswordResetEmail(auth, normalizedEmail);
+    }
   };
 
   const loginWithGoogle = async () => {

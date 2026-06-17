@@ -99,6 +99,7 @@ const App = () => (
 
                 {/* Appointments */}
                 <Route path="/appointments/create" element={<CreateAppointment />} />
+                <Route path="/appointments/edit/:id" element={<CreateAppointment />} />
                 <Route path="/appointments/created/:id" element={<AppointmentCreated />} />
               </Route>
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -19,24 +19,37 @@ const MAX_BOOKINGS_PER_SLOT_OPTIONS = [1, 2, 3, 4, 5];
 
 const CreateAppointment = () => {
   const navigate = useNavigate();
+  const { id: editId } = useParams<{ id: string }>();
   const isMobile = useIsMobile();
-  const { addAppointment, business, setBusinessLinkCreated, appointments } = useData();
+  const { addAppointment, updateAppointment, business, setBusinessLinkCreated, appointments } = useData();
+  const editingAppointment = editId ? appointments.find(a => a.id === editId) : undefined;
+  const isEditMode = Boolean(editId);
   const [step, setStep] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
 
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
-  const [message, setMessage] = useState('');
-  const [showMessage, setShowMessage] = useState(false);
+  const [name, setName] = useState(editingAppointment?.name ?? '');
+  const [description, setDescription] = useState(editingAppointment?.description ?? '');
+  const [price, setPrice] = useState(editingAppointment ? String(editingAppointment.price) : '');
+  const [message, setMessage] = useState(editingAppointment?.messageForClients ?? '');
+  const [showMessage, setShowMessage] = useState(Boolean(editingAppointment?.messageForClients));
 
-  const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]);
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('17:00');
-  const [duration, setDuration] = useState(30);
-  const [customDuration, setCustomDuration] = useState('');
-  const [isCustomDuration, setIsCustomDuration] = useState(false);
-  const [maxBookingsPerSlot, setMaxBookingsPerSlot] = useState(1);
+  const [selectedDays, setSelectedDays] = useState<number[]>(
+    editingAppointment?.availableDays ?? [1, 2, 3, 4, 5],
+  );
+  const [startTime, setStartTime] = useState(editingAppointment?.startTime ?? '09:00');
+  const [endTime, setEndTime] = useState(editingAppointment?.endTime ?? '17:00');
+  const [duration, setDuration] = useState(editingAppointment?.duration ?? 30);
+  const [customDuration, setCustomDuration] = useState(
+    editingAppointment && !DURATION_OPTIONS.includes(editingAppointment.duration)
+      ? String(editingAppointment.duration)
+      : '',
+  );
+  const [isCustomDuration, setIsCustomDuration] = useState(
+    editingAppointment
+      ? !DURATION_OPTIONS.includes(editingAppointment.duration)
+      : false,
+  );
+  const [maxBookingsPerSlot, setMaxBookingsPerSlot] = useState(editingAppointment?.maxBookingsPerSlot ?? 1);
 
   const toggleDay = (day: number) => {
     setSelectedDays(prev => (prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]));
@@ -79,6 +92,28 @@ const CreateAppointment = () => {
     );
   }
 
+  if (isEditMode && !editingAppointment && appointments.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <p className="text-sm text-muted-foreground">Loading appointment...</p>
+      </div>
+    );
+  }
+
+  if (isEditMode && !editingAppointment) {
+    return (
+      <div className="min-h-screen flex flex-col px-6 py-6 max-w-2xl mx-auto">
+        <BackButton onClick={() => navigate(-1)} />
+        <div className="flex-1 flex flex-col justify-center text-center space-y-4">
+          <p className="text-muted-foreground">Appointment not found.</p>
+          <Button onClick={() => navigate('/dashboard')} className="h-12 rounded-full">
+            Back to dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   const maxBookingsPerDay = (() => {
     const [sh, sm] = startTime.split(':').map(Number);
     const [eh, em] = endTime.split(':').map(Number);
@@ -86,9 +121,9 @@ const CreateAppointment = () => {
     return totalWindow > 0 ? Math.floor(totalWindow / actualDuration) : 0;
   })();
 
-  const handleCreate = () => {
-    const newAppointment = {
-      id: crypto.randomUUID(),
+  const handleSave = () => {
+    const appointmentPayload = {
+      id: editingAppointment?.id ?? crypto.randomUUID(),
       businessId: business?.id || '',
       name,
       description,
@@ -100,16 +135,23 @@ const CreateAppointment = () => {
       duration: actualDuration,
       maxBookingsPerSlot,
       messageForClients: message || undefined,
-      createdAt: new Date().toISOString(),
+      createdAt: editingAppointment?.createdAt ?? new Date().toISOString(),
     };
-    addAppointment(newAppointment);
+
+    if (isEditMode) {
+      updateAppointment(appointmentPayload);
+      navigate(`/dashboard/appointment/${appointmentPayload.id}`);
+      return;
+    }
+
+    addAppointment(appointmentPayload);
 
     const isFirstAppointment = appointments.length === 0;
     if (isFirstAppointment) {
       setBusinessLinkCreated(true);
     }
 
-    navigate(`/appointments/created/${newAppointment.id}`, {
+    navigate(`/appointments/created/${appointmentPayload.id}`, {
       state: { isFirstAppointment },
     });
   };
@@ -117,7 +159,7 @@ const CreateAppointment = () => {
   const renderStepOne = () => (
     <div className="space-y-5 flex-1 flex flex-col">
       <div>
-        <h1 className="text-xl font-bold">Create appointment</h1>
+        <h1 className="text-xl font-bold">{isEditMode ? 'Edit appointment' : 'Create appointment'}</h1>
         <p className="text-sm text-muted-foreground">Tell others what this service is about</p>
       </div>
       <div className="space-y-4 flex-1">
@@ -359,8 +401,8 @@ const CreateAppointment = () => {
                   Next <ArrowRight className="h-4 w-4" />
                 </Button>
               ) : (
-                <Button onClick={handleCreate} className="h-12 rounded-full gap-2" disabled={!name || !price || selectedDays.length === 0}>
-                  Create booking <ArrowRight className="h-4 w-4" />
+                <Button onClick={handleSave} className="h-12 rounded-full gap-2" disabled={!name || !price || selectedDays.length === 0}>
+                  {isEditMode ? 'Save changes' : 'Create booking'} <ArrowRight className="h-4 w-4" />
                 </Button>
               )}
             </div>
@@ -414,8 +456,8 @@ const CreateAppointment = () => {
               <Button variant="outline" onClick={() => navigate('/dashboard')} className="flex-1 h-12 rounded-full">
                 Edit Details
               </Button>
-              <Button onClick={handleCreate} className="flex-1 h-12 rounded-full gap-2" disabled={selectedDays.length === 0}>
-                Create booking <ArrowRight className="h-4 w-4" />
+              <Button onClick={handleSave} className="flex-1 h-12 rounded-full gap-2" disabled={selectedDays.length === 0}>
+                {isEditMode ? 'Save changes' : 'Create booking'} <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           </div>

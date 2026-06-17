@@ -187,6 +187,14 @@ const BusinessPage = () => {
 
   const isDateDisabled = (date: Date) => isBefore(date, startOfDay(new Date()));
 
+  const isPastSlot = (time: string) => {
+    if (!selectedDate) return false;
+    const [hours, minutes] = time.split(':').map(Number);
+    const slotDate = new Date(selectedDate);
+    slotDate.setHours(hours, minutes, 0, 0);
+    return slotDate <= new Date();
+  };
+
   const hasData = useMemo(() => Boolean(business && services.length >= 0), [business, services]);
 
   if (loading) {
@@ -291,13 +299,13 @@ const BusinessPage = () => {
                         {slots.map(slot => (
                           <button
                             key={slot.time}
-                            disabled={!slot.available}
+                            disabled={!slot.available || isPastSlot(slot.time)}
                             onClick={() => setSelectedTime(slot.time)}
                             className={cn(
                               'px-4 py-2 rounded-full text-sm font-medium transition-colors',
-                              !slot.available && 'cursor-not-allowed bg-[#020c1a]/5 text-[#020c1a]/30',
-                              slot.available && selectedTime === slot.time && 'bg-[#020c1a] text-white',
-                              slot.available && selectedTime !== slot.time && 'border border-[#020c1a]/10 text-[#020c1a] hover:bg-[#020c1a]/[0.03]'
+                              (!slot.available || isPastSlot(slot.time)) && 'cursor-not-allowed bg-[#020c1a]/5 text-[#020c1a]/30',
+                              slot.available && !isPastSlot(slot.time) && selectedTime === slot.time && 'bg-[#020c1a] text-white',
+                              slot.available && !isPastSlot(slot.time) && selectedTime !== slot.time && 'border border-[#020c1a]/10 text-[#020c1a] hover:bg-[#020c1a]/[0.03]'
                             )}
                           >
                             {formatTime(slot.time)}

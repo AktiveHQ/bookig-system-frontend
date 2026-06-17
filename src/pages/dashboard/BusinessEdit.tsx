@@ -353,7 +353,7 @@ const BusinessEdit = () => {
                   <Input value={address} onChange={e => setAddress(e.target.value)} className="h-12 rounded-xl" />
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-sm font-medium">Profile/Header image (optional)</label>
+                  <label className="text-sm font-medium">Business Photo or logo</label>
                   <div
                     className="border-2 border-dashed rounded-xl min-h-40 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-accent/50 transition-colors p-4"
                     onClick={() => fileInputRef.current?.click()}
@@ -379,7 +379,7 @@ const BusinessEdit = () => {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    This is what users will see on your public booking page.
+                    This image appears at on your public booking page.
                   </p>
                   {bookingImage && (
                     <Button
