@@ -4,7 +4,7 @@ import BackButton from '@/components/shared/BackButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
-import { getAdminAuthHeaderOrThrow } from '@/lib/admin-auth';
+import { getAdminAuthHeaderOrThrow, setAdminToken } from '@/lib/admin-auth';
 
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
@@ -122,8 +122,7 @@ const CreateAdminAccount = () => {
       if (!json?.ok || !json?.token) {
         throw new Error(json?.message || 'Bootstrap failed');
       }
-      // Store token and continue.
-      localStorage.setItem('admin_token', String(json.token));
+      setAdminToken(String(json.token), json.expiresAt ? String(json.expiresAt) : null);
       toast({ title: 'Admin created', description: 'You are now logged in as admin.' });
       navigate('/admin');
     } catch (error: any) {

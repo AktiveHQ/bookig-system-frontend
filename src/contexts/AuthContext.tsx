@@ -9,6 +9,8 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   updateProfile,
+  browserSessionPersistence,
+  setPersistence,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
@@ -35,34 +37,61 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const useAuth = () => useContext(AuthContext);
 
+async function ensureSessionPersistence() {
+  await setPersistence(auth, browserSessionPersistence);
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        // User logged in - set session start time
-        try {
-          const existingStartTime = sessionStorage.getItem(SESSION_START_TIME_KEY);
-          if (!existingStartTime) {
-            sessionStorage.setItem(SESSION_START_TIME_KEY, Date.now().toString());
+    let unsubscribe: (() => void) | undefined;
+    let cancelled = false;
+
+    void ensureSessionPersistence()
+      .catch(error => {
+        console.error('Failed to set auth persistence', error);
+      })
+      .finally(() => {
+        if (cancelled) return;
+
+        unsubscribe = onAuthStateChanged(auth, (user) => {
+          if (user) {
+            try {
+              const existingStartTime = sessionStorage.getItem(SESSION_START_TIME_KEY);
+              const elapsedTime = existingStartTime
+                ? Date.now() - parseInt(existingStartTime, 10)
+                : 0;
+              if (existingStartTime && elapsedTime > SESSION_TIMEOUT_MS) {
+                void signOut(auth);
+                sessionStorage.removeItem(SESSION_START_TIME_KEY);
+                setUser(null);
+                setLoading(false);
+                return;
+              }
+              if (!existingStartTime) {
+                sessionStorage.setItem(SESSION_START_TIME_KEY, Date.now().toString());
+              }
+            } catch (error) {
+              console.error('Failed to set session start time', error);
+            }
+          } else {
+            try {
+              sessionStorage.removeItem(SESSION_START_TIME_KEY);
+            } catch (error) {
+              console.error('Failed to clear session start time', error);
+            }
           }
-        } catch (error) {
-          console.error('Failed to set session start time', error);
-        }
-      } else {
-        // User logged out - clear session start time
-        try {
-          sessionStorage.removeItem(SESSION_START_TIME_KEY);
-        } catch (error) {
-          console.error('Failed to clear session start time', error);
-        }
-      }
-      setUser(user);
-      setLoading(false);
-    });
-    return unsubscribe;
+          setUser(user);
+          setLoading(false);
+        });
+      });
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, []);
 
   // Check for session expiration every 5 minutes
@@ -89,11 +118,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
+    checkSessionExpiration();
     const interval = setInterval(checkSessionExpiration, INACTIVITY_CHECK_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [user]);
 
   const login = async (email: string, password: string) => {
+    await ensureSessionPersistence();
     await signInWithEmailAndPassword(auth, email, password);
     // Set session start time
     try {
@@ -104,6 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signup = async (email: string, password: string, displayName: string) => {
+    await ensureSessionPersistence();
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(cred.user, { displayName });
     await registerBackendOwner(cred.user);
@@ -146,6 +178,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginWithGoogle = async () => {
+    await ensureSessionPersistence();
     const provider = new GoogleAuthProvider();
     const credential = await signInWithPopup(auth, provider);
     const isRegistered = await checkBackendOwnerExists(credential.user);
@@ -164,6 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signupWithGoogle = async () => {
+    await ensureSessionPersistence();
     const provider = new GoogleAuthProvider();
     const credential = await signInWithPopup(auth, provider);
     await registerBackendOwner(credential.user);

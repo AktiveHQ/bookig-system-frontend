@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart3, BriefcaseBusiness, CalendarCheck, CircleDollarSign } from 'lucide-react';
+import { BarChart3, BriefcaseBusiness, CalendarCheck, CircleDollarSign, LogOut } from 'lucide-react';
 import BackButton from '@/components/shared/BackButton';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -72,6 +72,21 @@ const AdminDashboard = () => {
   const [rows, setRows] = useState<AdminBusinessSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const handleLogout = async () => {
+    try {
+      const authHeader = getAdminAuthHeaderOrThrow();
+      await fetch(`${API_BASE}/admin/auth/logout`, {
+        method: 'POST',
+        headers: authHeader,
+      });
+    } catch (error) {
+      console.error('Admin logout failed', error);
+    } finally {
+      clearAdminToken();
+      navigate('/admin/login', { replace: true });
+    }
+  };
+
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -139,8 +154,12 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col px-6 py-6 max-w-6xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center justify-between gap-3 mb-6">
         <BackButton onClick={() => navigate('/dashboard')} />
+        <Button variant="outline" className="h-10 rounded-full gap-2" onClick={handleLogout}>
+          <LogOut className="h-4 w-4" />
+          Log out
+        </Button>
       </div>
 
       <div className="mb-6">

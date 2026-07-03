@@ -34,7 +34,7 @@ const AdminLogin = () => {
       if (!json?.token) {
         throw new Error('Login failed');
       }
-      setAdminToken(String(json.token));
+      setAdminToken(String(json.token), json.expiresAt ? String(json.expiresAt) : null);
       navigate('/admin');
     } catch (error: any) {
       toast({
