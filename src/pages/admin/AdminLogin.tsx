@@ -1,45 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import BackButton from '@/components/shared/BackButton';
 import { toast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { API_BASE, checkServerReachable, fetchWithTimeout, getErrorMessage, isServerConnectivityError } from '@/lib/api-diagnostics';
-import { ArrowRight, TimerReset, Wifi } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { setAdminToken } from '@/lib/admin-auth';
-
-const formatElapsed = (seconds: number) => {
-  const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
-  const remainingSeconds = (seconds % 60).toString().padStart(2, '0');
-  return `${minutes}:${remainingSeconds}`;
-};
 
 const AdminLogin = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [statusMessage, setStatusMessage] = useState('');
 
-  useEffect(() => {
-    if (!loading) return;
-    setElapsedSeconds(0);
-    const interval = window.setInterval(() => {
-      setElapsedSeconds(seconds => seconds + 1);
-    }, 1000);
-    return () => window.clearInterval(interval);
-  }, [loading]);
+  const API_BASE = (
+    import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
+  ).trim().replace(/\/$/, '');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setStatusMessage('Checking server connection...');
     try {
-      await checkServerReachable();
-      setStatusMessage('Server reached. Signing in...');
-      const response = await fetchWithTimeout(`${API_BASE}/admin/auth/login`, {
+      const response = await fetch(`${API_BASE}/admin/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -54,23 +36,14 @@ const AdminLogin = () => {
       }
       setAdminToken(String(json.token), json.expiresAt ? String(json.expiresAt) : null);
       navigate('/admin');
-    } catch (error: unknown) {
-      if (isServerConnectivityError(error)) {
-        toast({
-          title: 'Server connection issue',
-          description: getErrorMessage(error),
-          variant: 'destructive',
-        });
-      } else {
-        toast({
-          title: 'Login failed',
-          description: getErrorMessage(error),
-          variant: 'destructive',
-        });
-      }
+    } catch (error: any) {
+      toast({
+        title: 'Login failed',
+        description: error?.message || 'Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
-      setStatusMessage('');
     }
   };
 
@@ -86,20 +59,6 @@ const AdminLogin = () => {
               Sign in to review business setup submissions
             </p>
           </div>
-
-          {loading && (
-            <Alert className="rounded-xl">
-              <TimerReset className="h-4 w-4" />
-              <AlertTitle className="flex items-center justify-between gap-3">
-                <span>{statusMessage || 'Signing in...'}</span>
-                <span className="font-mono text-xs">{formatElapsed(elapsedSeconds)}</span>
-              </AlertTitle>
-              <AlertDescription className="flex items-center gap-2 text-xs">
-                <Wifi className="h-3.5 w-3.5" />
-                Checking API: {API_BASE}
-              </AlertDescription>
-            </Alert>
-          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">

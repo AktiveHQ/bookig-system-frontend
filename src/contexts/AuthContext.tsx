@@ -13,11 +13,14 @@ import {
   setPersistence,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { API_BASE, fetchWithTimeout, getErrorCode } from '@/lib/api-diagnostics';
 
 const SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
 const INACTIVITY_CHECK_INTERVAL_MS = 5 * 60 * 1000; // Check every 5 minutes
 const SESSION_START_TIME_KEY = 'akhq:sessionStartTime';
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
+).trim().replace(/\/$/, '');
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -165,8 +168,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         url: actionUrl,
         handleCodeInApp: false,
       });
-    } catch (error: unknown) {
-      if (getErrorCode(error) !== 'auth/unauthorized-continue-uri') {
+    } catch (error: any) {
+      if (error?.code !== 'auth/unauthorized-continue-uri') {
         throw error;
       }
 
@@ -225,7 +228,7 @@ async function getBearerHeader(user: User) {
 }
 
 async function checkBackendOwnerExists(user: User) {
-  const response = await fetchWithTimeout(`${API_BASE}/dashboard/me`, {
+  const response = await fetch(`${API_BASE}/dashboard/me`, {
     headers: await getBearerHeader(user),
   });
   if (response.ok) return true;
@@ -234,7 +237,7 @@ async function checkBackendOwnerExists(user: User) {
 }
 
 async function registerBackendOwner(user: User) {
-  const response = await fetchWithTimeout(`${API_BASE}/dashboard/me/register`, {
+  const response = await fetch(`${API_BASE}/dashboard/me/register`, {
     method: 'POST',
     headers: await getBearerHeader(user),
   });
@@ -244,7 +247,7 @@ async function registerBackendOwner(user: User) {
 }
 
 async function checkBackendBusinessExists(user: User) {
-  const response = await fetchWithTimeout(`${API_BASE}/dashboard/businesses/me?view=summary`, {
+  const response = await fetch(`${API_BASE}/dashboard/businesses/me?view=summary`, {
     headers: await getBearerHeader(user),
   });
   if (response.ok) return true;
