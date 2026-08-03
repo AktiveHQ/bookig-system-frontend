@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BackButton from '@/components/shared/BackButton';
+import PasswordInput from '@/components/shared/PasswordInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
@@ -178,8 +179,7 @@ const CreateAdminAccount = () => {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Temporary password</label>
-              <Input
-                type="password"
+              <PasswordInput
                 value={createPassword}
                 onChange={e => setCreatePassword(e.target.value)}
                 className="h-12 rounded-xl"

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import BackButton from '@/components/shared/BackButton';
+import PasswordInput from '@/components/shared/PasswordInput';
 import { toast } from '@/hooks/use-toast';
 import { ArrowRight } from 'lucide-react';
 import { setAdminToken } from '@/lib/admin-auth';
@@ -75,8 +76,7 @@ const AdminLogin = () => {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Password</label>
-              <Input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"

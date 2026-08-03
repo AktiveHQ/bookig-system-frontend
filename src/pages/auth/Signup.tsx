@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import BackButton from '@/components/shared/BackButton';
+import PasswordInput from '@/components/shared/PasswordInput';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { ArrowRight } from 'lucide-react';
@@ -94,8 +95,7 @@ const Signup = () => {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Create password</label>
-              <Input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="At least 8 characters"
@@ -107,8 +107,7 @@ const Signup = () => {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Confirm password</label>
-              <Input
-                type="password"
+              <PasswordInput
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
                 placeholder="Confirm your password"
