@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import BookingConfirmationCard from '@/components/shared/BookingConfirmationCard';
-import { CheckCircle } from 'lucide-react';
+import { CalendarPlus, CheckCircle } from 'lucide-react';
 
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
@@ -18,6 +18,7 @@ const BookingConfirmed = () => {
     time: string;
     total: number;
     slug?: string;
+    bookingId?: number | string;
   } | null;
   const [storedState] = useState(() => {
     try {
@@ -30,6 +31,7 @@ const BookingConfirmed = () => {
         time: String(parsed?.time ?? ''),
         total: Number(parsed?.amountToCharge ?? parsed?.total ?? 0),
         slug: String(parsed?.slug ?? ''),
+        bookingId: parsed?.bookingId,
       };
     } catch {
       return null;
@@ -38,9 +40,11 @@ const BookingConfirmed = () => {
   const state = routeState ?? storedState;
   const businessSlug = slug || state?.slug;
   const reference = new URLSearchParams(location.search).get('reference');
+  const bookingId = new URLSearchParams(location.search).get('bookingId') || storedState?.bookingId;
   const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>(
     reference ? 'sending' : 'idle',
   );
+  const [calendarUrl, setCalendarUrl] = useState('');
 
   useEffect(() => {
     if (!reference) return;
@@ -69,6 +73,45 @@ const BookingConfirmed = () => {
     };
   }, [reference]);
 
+  useEffect(() => {
+    if (!bookingId) return;
+
+    let active = true;
+    const loadBooking = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/public/bookings/${bookingId}`);
+        if (!response.ok) throw new Error('Booking details unavailable');
+        const booking = await response.json();
+        const business = booking?.business;
+        const service = booking?.service;
+        const businessName = String(business?.name ?? 'Business');
+        const serviceName = String(service?.name ?? state?.appointmentName ?? 'Appointment');
+        const locationText = [business?.address, business?.city, business?.country]
+          .filter(Boolean)
+          .join(', ');
+        const toGoogleDate = (value: string) =>
+          new Date(value).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+        const params = new URLSearchParams({
+          action: 'TEMPLATE',
+          text: `${serviceName} with ${businessName}`,
+          dates: `${toGoogleDate(booking.startAt)}/${toGoogleDate(booking.endAt)}`,
+          location: locationText,
+          details: ['Booking via AktiveHQ', `Booking reference: AKT-${booking.id}`].join('\n'),
+        });
+        if (active) {
+          setCalendarUrl(`https://calendar.google.com/calendar/render?${params.toString()}`);
+        }
+      } catch (error) {
+        console.error('[BookingConfirmed] Calendar details failed', error);
+      }
+    };
+
+    void loadBooking();
+    return () => {
+      active = false;
+    };
+  }, [bookingId, state?.appointmentName]);
+
   if (!state) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 text-[#020c1a]">
@@ -88,8 +131,18 @@ const BookingConfirmed = () => {
               Reference: <span className="font-mono">{reference}</span>
             </p>
           )}
+          {calendarUrl && (
+            <Button
+              variant="outline"
+              className="mt-6 h-12 rounded-full border-[#020c1a]/20 px-8 text-[#020c1a]"
+              onClick={() => window.open(calendarUrl, '_blank', 'noopener,noreferrer')}
+            >
+              <CalendarPlus className="mr-2 h-4 w-4" />
+              Add to Google Calendar
+            </Button>
+          )}
           <Button 
-            className="mt-6 h-12 rounded-full bg-[#020c1a] px-8 text-white hover:bg-[#020c1a]/90" 
+            className="mt-3 h-12 rounded-full bg-[#020c1a] px-8 text-white hover:bg-[#020c1a]/90" 
             onClick={() => navigate(businessSlug ? `/booking/${businessSlug}` : '/')}
           >
             Done
@@ -122,6 +175,16 @@ const BookingConfirmed = () => {
         )}
 
         <div className="mt-10 grid w-full gap-3 sm:grid-cols-2">
+          {calendarUrl && (
+            <Button
+              variant="outline"
+              className="w-full h-12 rounded-full border-[#020c1a]/20 text-[#020c1a] hover:bg-[#020c1a]/[0.03] hover:text-[#020c1a] focus-visible:ring-[#020c1a] sm:col-span-2"
+              onClick={() => window.open(calendarUrl, '_blank', 'noopener,noreferrer')}
+            >
+              <CalendarPlus className="mr-2 h-4 w-4" />
+              Add to Google Calendar
+            </Button>
+          )}
           <Button
             variant="outline"
             className="w-full h-12 rounded-full border-[#020c1a]/20 text-[#020c1a] hover:bg-[#020c1a]/[0.03] hover:text-[#020c1a] focus-visible:ring-[#020c1a]"

@@ -314,7 +314,11 @@ const BookingsList = () => {
                   filteredBookings.map(booking => {
                     const appointment = appointmentsById.get(booking.appointmentId);
                     return (
-                      <TableRow key={booking.id}>
+                      <TableRow
+                        key={booking.id}
+                        className="cursor-pointer"
+                        onClick={() => navigate(`/dashboard/bookings/${booking.id}`)}
+                      >
                         <TableCell className="font-medium">{booking.clientName || '-'}</TableCell>
                         <TableCell>{appointment?.name || 'Service'}</TableCell>
                         <TableCell>{booking.date}</TableCell>
