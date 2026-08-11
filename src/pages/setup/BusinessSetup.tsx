@@ -11,7 +11,7 @@ import { ArrowRight, Loader2, Upload } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import WelcomeBackNote from '@/components/shared/WelcomeBackNote';
 
-const STEP_LABELS = ['4 easy steps!', 'Getting there!', 'Almost there!', 'Finish setup!'];
+const STEP_LABELS = ['3 easy steps!', 'Getting there!', 'Finish setup!'];
 const SETUP_DRAFT_KEY = 'akhq:businessSetupDraft';
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
@@ -56,16 +56,10 @@ const BusinessSetup = () => {
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
 
-  // Step 3
   const [bookingImage, setBookingImage] = useState('');
-  const [idVerificationType, setIdVerificationType] = useState<'NIN' | 'PASSPORT' | 'VOTERS_CARD' | ''>('');
-  const [idDocumentData, setIdDocumentData] = useState<string>('');
-  const [cacDocumentData, setCacDocumentData] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const idDocInputRef = useRef<HTMLInputElement>(null);
-  const cacDocInputRef = useRef<HTMLInputElement>(null);
 
-  // Step 4
+  // Step 3
   const feeHandling: 'customer' | 'business' = 'customer';
   const [accountHolder, setAccountHolder] = useState('');
   const [bankName, setBankName] = useState('');
@@ -79,7 +73,10 @@ const BusinessSetup = () => {
       const rawDraft = localStorage.getItem(SETUP_DRAFT_KEY);
       if (!rawDraft) return;
       const draft = JSON.parse(rawDraft);
-      setStep(Number.isInteger(draft.step) ? Math.min(Math.max(Number(draft.step), 0), 3) : 0);
+      const restoredStep = Number.isInteger(draft.step)
+        ? Math.min(Math.max(Number(draft.step), 0), 2)
+        : 0;
+      setStep(restoredStep);
       setName(String(draft.name ?? ''));
       setDescription(String(draft.description ?? ''));
       setEmail(String(draft.email ?? ''));
@@ -87,9 +84,6 @@ const BusinessSetup = () => {
       setCity(String(draft.city ?? ''));
       setAddress(String(draft.address ?? ''));
       setBookingImage(String(draft.bookingImage ?? ''));
-      setIdVerificationType(draft.idVerificationType || '');
-      setIdDocumentData(String(draft.idDocumentData ?? ''));
-      setCacDocumentData(String(draft.cacDocumentData ?? ''));
       setAccountHolder(String(draft.accountHolder ?? ''));
       setBankName(String(draft.bankName ?? ''));
       setBankCode(String(draft.bankCode ?? ''));
@@ -114,9 +108,6 @@ const BusinessSetup = () => {
       city,
       address,
       bookingImage,
-      idVerificationType,
-      idDocumentData,
-      cacDocumentData,
       accountHolder,
       bankName,
       bankCode,
@@ -227,9 +218,6 @@ const BusinessSetup = () => {
       businessDescription: description,
       country, city, address, email, phone,
       headerImageUrl: bookingImage ? bookingImage : null,
-      idVerificationType: idVerificationType ? idVerificationType : null,
-      idDocumentData: idDocumentData ? idDocumentData : null,
-      cacDocumentData: cacDocumentData ? cacDocumentData : null,
       feeHandling, accountHolderName: accountHolder, bankName, bankCode, accountNumber,
       slug,
     };
@@ -293,73 +281,6 @@ const BusinessSetup = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleDocUpload = (
-    event: ChangeEvent<HTMLInputElement>,
-    setter: (value: string) => void,
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const isAllowed =
-      file.type.startsWith('image/') || file.type === 'application/pdf';
-    if (!isAllowed) {
-      toast({
-        title: 'Invalid file type',
-        description: 'Please upload an image or PDF file.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const maxSizeInBytes = 5 * 1024 * 1024;
-    if (file.size > maxSizeInBytes) {
-      toast({
-        title: 'File too large',
-        description: 'Please use a file smaller than 5MB.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === 'string') {
-        setter(result);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const renderDocPreview = (dataUrl: string, label: string) => {
-    if (!dataUrl) return null;
-    if (dataUrl.startsWith('data:image/')) {
-      return (
-        <img
-          src={dataUrl}
-          alt={`${label} preview`}
-          className="h-24 w-24 rounded-xl object-cover border"
-        />
-      );
-    }
-    if (dataUrl.startsWith('data:application/pdf')) {
-      return (
-        <div className="text-xs text-muted-foreground text-center">
-          <p className="font-medium text-foreground">PDF selected</p>
-          <a
-            href={dataUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
-          >
-            Preview PDF
-          </a>
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
     <div className="min-h-screen flex flex-col px-4 py-6 sm:px-6 max-w-2xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
@@ -377,7 +298,7 @@ const BusinessSetup = () => {
         </Button>
       </div>
 
-      <ProgressBar currentStep={step} totalSteps={4} labels={STEP_LABELS} />
+      <ProgressBar currentStep={step} totalSteps={3} labels={STEP_LABELS} />
 
       <div className={`flex-1 flex flex-col mt-6 transition-opacity duration-200 ${transitioning ? 'opacity-0' : 'opacity-100'}`}>
         {step === 0 && (
@@ -477,114 +398,6 @@ const BusinessSetup = () => {
         )}
 
         {step === 2 && (
-          <div className="space-y-4 flex-1 flex flex-col">
-            <h1 className="text-xl font-bold">Business information</h1>
-            <div className="space-y-3 flex-1">
-              <div className="space-y-1.5">
-                <RequiredLabel>ID Verification</RequiredLabel>
-                <select
-                  value={idVerificationType}
-                  onChange={e => setIdVerificationType(e.target.value as any)}
-                  className={`${inputClassName} w-full border bg-background px-3 text-sm`}
-                  required
-                >
-                  <option value="">Select ID type</option>
-                  <option value="NIN">NIN</option>
-                  <option value="PASSPORT">Passport</option>
-                  <option value="VOTERS_CARD">Voters card</option>
-                </select>
-                <p className="text-xs text-muted-foreground">
-                  Choose the ID you want to use for verification.
-                </p>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">ID Upload</label>
-                <div
-                  className={uploadBoxClassName}
-                  onClick={() => idDocInputRef.current?.click()}
-                >
-                  {idDocumentData ? (
-                    renderDocPreview(idDocumentData, 'ID document')
-                  ) : (
-                    <Upload className="h-6 w-6 text-muted-foreground" />
-                  )}
-                  <p className="text-sm text-muted-foreground text-center">
-                    {idDocumentData ? 'Tap to change document' : 'Upload identification document (image/PDF)'}
-                  </p>
-                  <input
-                    ref={idDocInputRef}
-                    type="file"
-                    accept="image/*,application/pdf"
-                    className="hidden"
-                    onChange={e => handleDocUpload(e, setIdDocumentData)}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Upload a clear photo or PDF of the selected ID (max 5MB).
-                </p>
-                {idDocumentData && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-9 rounded-full"
-                    onClick={() => setIdDocumentData('')}
-                  >
-                    Remove ID document
-                  </Button>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Business Document (CAC)</label>
-                <div
-                  className={uploadBoxClassName}
-                  onClick={() => cacDocInputRef.current?.click()}
-                >
-                  {cacDocumentData ? (
-                    renderDocPreview(cacDocumentData, 'CAC document')
-                  ) : (
-                    <Upload className="h-6 w-6 text-muted-foreground" />
-                  )}
-                  <p className="text-sm text-muted-foreground text-center">
-                    {cacDocumentData ? 'Tap to change document' : 'Upload business document (image/PDF)'}
-                  </p>
-                  <input
-                    ref={cacDocInputRef}
-                    type="file"
-                    accept="image/*,application/pdf"
-                    className="hidden"
-                    onChange={e => handleDocUpload(e, setCacDocumentData)}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Upload your CAC/business registration document (image or PDF, max 5MB).
-                </p>
-                {cacDocumentData && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-9 rounded-full"
-                    onClick={() => setCacDocumentData('')}
-                  >
-                    Remove CAC document
-                  </Button>
-                )}
-              </div>
-
-            </div>
-
-            <Button
-              onClick={goNext}
-              className="w-full h-11 rounded-full gap-2"
-              disabled={!idVerificationType}
-            >
-              Next <ArrowRight className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-
-        {step === 3 && (
           <div className="space-y-4 flex-1 flex flex-col">
             <div>
               <h1 className="text-xl font-bold">How you want to get paid and where your money should go</h1>
