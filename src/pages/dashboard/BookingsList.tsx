@@ -207,21 +207,28 @@ const BookingCard = ({
   onClick: () => void;
 }) => {
   const paid = PAID_STATUSES.includes(booking.status);
+  const serviceName = appointment?.name || booking.appointmentName || 'Service';
   return (
-    <button className="w-full rounded-2xl border bg-card p-4 text-left shadow-sm" onClick={onClick}>
-      <p className="text-sm text-muted-foreground">{formatDate(booking.date)} · {formatTime(booking.time)}</p>
-      <div className="mt-5">
-        <h3 className="font-bold">{appointment?.name || booking.appointmentName || 'Service'}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">{booking.clientName || 'Client'}</p>
-      </div>
-      <div className="mt-5 border-t pt-4">
-        <div className="flex items-center justify-between gap-3">
-          <p className="font-bold">{formatCurrency(Number(appointment?.price ?? 0))}</p>
-          <span className={cn('rounded-full px-3 py-1 text-xs font-semibold', paid ? 'bg-foreground text-background' : 'bg-accent text-primary')}>
-            {paid ? 'Paid' : 'Pending'}
+    <button className="w-full rounded-xl border bg-card p-3 text-left shadow-sm" onClick={onClick}>
+      <div className="flex items-center gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent">
+          <CalendarDays className="h-5 w-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-start justify-between gap-3">
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-bold">{serviceName}</span>
+              <span className="mt-0.5 block truncate text-sm text-muted-foreground">{booking.clientName || 'Client'}</span>
+            </span>
+            <span className="shrink-0 text-sm font-bold">{formatCurrency(Number(appointment?.price ?? 0))}</span>
           </span>
-        </div>
-        <p className="mt-3 text-sm text-muted-foreground">{appointment?.duration ?? 0} mins</p>
+          <span className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+            <span>{formatDate(booking.date)} · {formatTime(booking.time)} · {appointment?.duration ?? 0} mins</span>
+            <span className={paid ? 'text-emerald-600' : 'text-blue-600'}>
+              {paid ? 'Paid' : 'Pending'}
+            </span>
+          </span>
+        </span>
       </div>
     </button>
   );

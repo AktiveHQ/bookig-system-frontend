@@ -1,67 +1,85 @@
 import { useMemo, useState } from 'react';
-import { endOfMonth, isWithinInterval, parseISO, startOfMonth, subMonths } from 'date-fns';
+import {
+  endOfDay,
+  endOfMonth,
+  endOfWeek,
+  endOfYear,
+  isWithinInterval,
+  parseISO,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+  startOfYear,
+  subDays,
+  subWeeks,
+  subYears,
+} from 'date-fns';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { useData } from '@/contexts/DataContext';
 import { cn } from '@/lib/utils';
+import type { Appointment, Booking } from '@/types';
 
 const EARNING_STATUSES = ['confirmed', 'completed'];
 const ACTIVE_STATUSES = ['pending_payment', 'confirmed', 'completed'];
-const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+type Period = 'daily' | 'weekly' | 'monthly' | 'yearly';
+type Metric = 'earnings' | 'appointments';
+type ChartRow = { label: string; earnings: number; appointments: number };
 
 const Analytics = () => {
   const { appointments, bookings } = useData();
-  const [metric, setMetric] = useState<'earnings' | 'appointments'>('earnings');
-  const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
+  const [metric, setMetric] = useState<Metric>('earnings');
+  const [period, setPeriod] = useState<Period>('weekly');
 
   const appointmentsById = useMemo(
     () => new Map(appointments.map(appointment => [appointment.id, appointment])),
     [appointments],
   );
 
-  const rows = useMemo(
-    () =>
-      days.map((day, index) => {
-        const dayBookings = bookings.filter((_, bookingIndex) => bookingIndex % 7 === index);
-        const earnings = dayBookings
-          .filter(booking => EARNING_STATUSES.includes(booking.status))
-          .reduce((sum, booking) => sum + Number(appointmentsById.get(booking.appointmentId)?.price ?? 0), 0);
-        const appointmentCount = dayBookings.filter(booking => ACTIVE_STATUSES.includes(booking.status)).length;
-        return {
-          day,
-          earnings,
-          appointments: appointmentCount,
-        };
-      }),
-    [appointmentsById, bookings],
+  const activeBookings = useMemo(
+    () => bookings.filter(booking => ACTIVE_STATUSES.includes(booking.status)),
+    [bookings],
   );
 
-  const totalEarnings = rows.reduce((sum, row) => sum + row.earnings, 0);
-  const totalAppointments = rows.reduce((sum, row) => sum + row.appointments, 0);
-  const currentMonthBookings = getBookingsInMonth(bookings, new Date());
-  const previousMonthBookings = getBookingsInMonth(bookings, subMonths(new Date(), 1));
-  const currentMonthEarnings = getBookingEarnings(currentMonthBookings, appointmentsById);
-  const previousMonthEarnings = getBookingEarnings(previousMonthBookings, appointmentsById);
-  const earningsDelta =
-    previousMonthEarnings > 0 ? Math.max(currentMonthEarnings - previousMonthEarnings, 0) : 0;
-  const appointmentsDelta =
-    previousMonthBookings.length > 0
-      ? Math.max(currentMonthBookings.length - previousMonthBookings.length, 0)
-      : 0;
-  const primaryValue = metric === 'earnings' ? formatCurrency(totalEarnings) : totalAppointments.toLocaleString();
+  const rows = useMemo(
+    () => buildChartRows(period, activeBookings, appointments, appointmentsById),
+    [activeBookings, appointments, appointmentsById, period],
+  );
+
+  const currentPeriodBookings = useMemo(
+    () => getCurrentPeriodBookings(period, activeBookings),
+    [activeBookings, period],
+  );
+
+  const previousPeriodBookings = useMemo(
+    () => getPreviousPeriodBookings(period, activeBookings),
+    [activeBookings, period],
+  );
+
+  const currentEarnings = getBookingEarnings(currentPeriodBookings, appointmentsById);
+  const previousEarnings = getBookingEarnings(previousPeriodBookings, appointmentsById);
+  const currentAppointments = currentPeriodBookings.length;
+  const previousAppointments = previousPeriodBookings.length;
+
+  const primaryValue =
+    metric === 'earnings'
+      ? formatCurrency(currentEarnings)
+      : currentAppointments.toLocaleString('en-NG');
   const increaseValue =
     metric === 'earnings'
-      ? `Up ${formatCurrency(earningsDelta)}`
-      : `Up ${appointmentsDelta} appointments`;
+      ? `Up ${formatCurrency(Math.max(currentEarnings - previousEarnings, 0))}`
+      : `Up ${Math.max(currentAppointments - previousAppointments, 0)} appointments`;
 
   const breakdown = useMemo(
     () =>
       appointments
         .map(appointment => {
-          const serviceBookings = bookings.filter(booking => booking.appointmentId === appointment.id);
-          const earning = serviceBookings
-            .filter(booking => EARNING_STATUSES.includes(booking.status))
-            .reduce(sum => sum + Number(appointment.price ?? 0), 0);
-          const count = serviceBookings.filter(booking => ACTIVE_STATUSES.includes(booking.status)).length;
+          const serviceBookings = currentPeriodBookings.filter(
+            booking => booking.appointmentId === appointment.id,
+          );
+          const earning = getBookingEarnings(serviceBookings, appointmentsById);
+          const count = serviceBookings.length;
           return {
             id: appointment.id,
             name: appointment.name,
@@ -69,9 +87,10 @@ const Analytics = () => {
             helper: 'Comparison coming soon',
           };
         })
+        .filter(item => item.value > 0)
         .sort((a, b) => b.value - a.value)
         .slice(0, 5),
-    [appointments, bookings, metric],
+    [appointments, appointmentsById, currentPeriodBookings, metric],
   );
 
   const maxBreakdown = Math.max(...breakdown.map(item => item.value), 1);
@@ -112,20 +131,22 @@ const Analytics = () => {
           <p className="mt-3 inline-flex rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-600">
             {increaseValue}
           </p>
-          <p className="mt-2 text-sm text-muted-foreground">vs previous {period.replace('ly', '')} period</p>
+          <p className="mt-2 text-sm text-muted-foreground">{getComparisonLabel(period)}</p>
 
-          <div className="mt-5 h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={rows}>
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12 }} />
-                <YAxis hide />
-                <Bar
-                  dataKey={metric === 'earnings' ? 'earnings' : 'appointments'}
-                  radius={[8, 8, 0, 0]}
-                  fill="hsl(var(--primary))"
-                />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="mt-5 max-h-72 overflow-y-auto pr-1">
+            <div className={cn('h-48', period === 'monthly' && 'h-56')}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={rows}>
+                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 12 }} />
+                  <YAxis hide />
+                  <Bar
+                    dataKey={metric === 'earnings' ? 'earnings' : 'appointments'}
+                    radius={[8, 8, 0, 0]}
+                    fill="hsl(var(--primary))"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </section>
 
@@ -144,7 +165,7 @@ const Analytics = () => {
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-semibold">{item.name}</p>
                     <p className="font-semibold">
-                      {metric === 'earnings' ? formatCurrency(item.value) : item.value.toLocaleString()}
+                      {metric === 'earnings' ? formatCurrency(item.value) : item.value.toLocaleString('en-NG')}
                     </p>
                   </div>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
@@ -153,7 +174,7 @@ const Analytics = () => {
                       style={{ width: `${Math.max((item.value / maxBreakdown) * 100, 6)}%` }}
                     />
                   </div>
-                  <p className="mt-2 text-xs font-medium text-emerald-600">{item.helper}</p>
+                  <p className="mt-2 text-xs font-medium text-muted-foreground">{item.helper}</p>
                 </div>
               ))
             )}
@@ -189,23 +210,160 @@ const SegmentButton = ({
   </button>
 );
 
-const formatCurrency = (value: number) =>
-  `₦${Number(value || 0).toLocaleString('en-NG')}`;
+const buildChartRows = (
+  period: Period,
+  bookings: Booking[],
+  appointments: Appointment[],
+  appointmentsById: Map<string, Appointment>,
+): ChartRow[] => {
+  if (period === 'daily') {
+    const todayBookings = filterBookingsBetween(bookings, startOfDay(new Date()), endOfDay(new Date()));
+    const ranges = getWorkHourRanges(appointments);
+    return ranges.map(range => {
+      const rangeBookings = todayBookings.filter(booking => {
+        const minutes = getTimeInMinutes(booking.time);
+        return minutes >= range.start && minutes < range.end;
+      });
+      return createChartRow(range.label, rangeBookings, appointmentsById);
+    });
+  }
 
-const getBookingsInMonth = (bookings: Array<{ date: string }>, date: Date) =>
-  bookings.filter(booking =>
-    isWithinInterval(parseISO(booking.date), {
-      start: startOfMonth(date),
-      end: endOfMonth(date),
-    }),
-  );
+  if (period === 'weekly') {
+    const monthStart = startOfMonth(new Date());
+    const monthEnd = endOfMonth(new Date());
+    return Array.from({ length: 5 }, (_, index) => {
+      const rangeStart = new Date(monthStart);
+      rangeStart.setDate(index * 7 + 1);
+      const rangeEnd = new Date(monthStart);
+      rangeEnd.setDate(Math.min((index + 1) * 7, monthEnd.getDate()));
+      rangeEnd.setHours(23, 59, 59, 999);
+      return createChartRow(
+        `Wk ${index + 1}`,
+        filterBookingsBetween(bookings, rangeStart, rangeEnd),
+        appointmentsById,
+      );
+    });
+  }
+
+  if (period === 'monthly') {
+    const year = new Date().getFullYear();
+    return MONTH_LABELS.map((label, monthIndex) => {
+      const monthStart = new Date(year, monthIndex, 1);
+      const monthEnd = endOfMonth(monthStart);
+      return createChartRow(label, filterBookingsBetween(bookings, monthStart, monthEnd), appointmentsById);
+    });
+  }
+
+  const currentYear = new Date().getFullYear();
+  const latestBookingYear = bookings.reduce((latest, booking) => {
+    const year = parseBookingDateTime(booking).getFullYear();
+    return Number.isNaN(year) ? latest : Math.max(latest, year);
+  }, currentYear);
+
+  return Array.from({ length: latestBookingYear - currentYear + 1 }, (_, index) => {
+    const year = currentYear + index;
+    const yearStart = new Date(year, 0, 1);
+    const yearEnd = endOfYear(yearStart);
+    return createChartRow(String(year), filterBookingsBetween(bookings, yearStart, yearEnd), appointmentsById);
+  });
+};
+
+const createChartRow = (
+  label: string,
+  bookings: Booking[],
+  appointmentsById: Map<string, Appointment>,
+): ChartRow => ({
+  label,
+  earnings: getBookingEarnings(bookings, appointmentsById),
+  appointments: bookings.length,
+});
+
+const getCurrentPeriodBookings = (period: Period, bookings: Booking[]) => {
+  const now = new Date();
+  if (period === 'daily') return filterBookingsBetween(bookings, startOfDay(now), endOfDay(now));
+  if (period === 'weekly') return filterBookingsBetween(bookings, startOfWeek(now), endOfWeek(now));
+  if (period === 'monthly') return filterBookingsBetween(bookings, startOfYear(now), endOfYear(now));
+  return filterBookingsBetween(bookings, startOfYear(now), endOfYear(now));
+};
+
+const getPreviousPeriodBookings = (period: Period, bookings: Booking[]) => {
+  const now = new Date();
+  if (period === 'daily') {
+    const yesterday = subDays(now, 1);
+    return filterBookingsBetween(bookings, startOfDay(yesterday), endOfDay(yesterday));
+  }
+  if (period === 'weekly') {
+    const previousWeek = subWeeks(now, 1);
+    return filterBookingsBetween(bookings, startOfWeek(previousWeek), endOfWeek(previousWeek));
+  }
+  if (period === 'monthly') {
+    const previousYear = subYears(now, 1);
+    return filterBookingsBetween(bookings, startOfYear(previousYear), endOfYear(previousYear));
+  }
+  const previousYear = subYears(now, 1);
+  return filterBookingsBetween(bookings, startOfYear(previousYear), endOfYear(previousYear));
+};
+
+const filterBookingsBetween = (bookings: Booking[], start: Date, end: Date) =>
+  bookings.filter(booking => {
+    const bookingDate = parseBookingDateTime(booking);
+    if (Number.isNaN(bookingDate.getTime())) return false;
+    return isWithinInterval(bookingDate, { start, end });
+  });
+
+const getWorkHourRanges = (appointments: Appointment[]) => {
+  const starts = appointments.map(appointment => getTimeInMinutes(appointment.startTime)).filter(Number.isFinite);
+  const ends = appointments.map(appointment => getTimeInMinutes(appointment.endTime)).filter(Number.isFinite);
+  const start = starts.length ? Math.min(...starts) : 8 * 60;
+  const rawEnd = ends.length ? Math.max(...ends) : 18 * 60;
+  const end = rawEnd > start ? rawEnd : start + 10 * 60;
+  const total = Math.max(end - start, 5 * 60);
+  const size = Math.ceil(total / 5 / 30) * 30;
+
+  return Array.from({ length: 5 }, (_, index) => {
+    const rangeStart = start + index * size;
+    const rangeEnd = index === 4 ? end : Math.min(start + (index + 1) * size, end);
+    return {
+      start: rangeStart,
+      end: rangeEnd + (index === 4 ? 1 : 0),
+      label: `${formatHour(rangeStart)}-${formatHour(rangeEnd)}`,
+    };
+  });
+};
+
+const parseBookingDateTime = (booking: Booking) => {
+  const parsed = parseISO(`${booking.date}T${booking.time || '00:00'}:00`);
+  return Number.isNaN(parsed.getTime()) ? parseISO(booking.date) : parsed;
+};
+
+const getTimeInMinutes = (time: string) => {
+  const [hours, minutes] = time.split(':').map(Number);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return 0;
+  return hours * 60 + minutes;
+};
+
+const formatHour = (minutes: number) => {
+  const hour = Math.floor(minutes / 60) % 24;
+  const displayHour = hour % 12 || 12;
+  return String(displayHour);
+};
 
 const getBookingEarnings = (
-  bookings: Array<{ appointmentId: string; status: string }>,
-  appointmentsById: Map<string, { price: number }>,
+  bookings: Booking[],
+  appointmentsById: Map<string, Appointment>,
 ) =>
   bookings
     .filter(booking => EARNING_STATUSES.includes(booking.status))
     .reduce((sum, booking) => sum + Number(appointmentsById.get(booking.appointmentId)?.price ?? 0), 0);
+
+const getComparisonLabel = (period: Period) => {
+  if (period === 'daily') return 'vs yesterday';
+  if (period === 'weekly') return 'vs previous week';
+  if (period === 'monthly') return 'vs previous year';
+  return 'vs previous year';
+};
+
+const formatCurrency = (value: number) =>
+  `₦${Number(value || 0).toLocaleString('en-NG')}`;
 
 export default Analytics;
