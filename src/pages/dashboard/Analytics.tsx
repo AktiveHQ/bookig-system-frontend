@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { endOfMonth, isWithinInterval, parseISO, startOfMonth, subMonths } from 'date-fns';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { useData } from '@/contexts/DataContext';
 import { cn } from '@/lib/utils';
@@ -36,11 +37,21 @@ const Analytics = () => {
 
   const totalEarnings = rows.reduce((sum, row) => sum + row.earnings, 0);
   const totalAppointments = rows.reduce((sum, row) => sum + row.appointments, 0);
+  const currentMonthBookings = getBookingsInMonth(bookings, new Date());
+  const previousMonthBookings = getBookingsInMonth(bookings, subMonths(new Date(), 1));
+  const currentMonthEarnings = getBookingEarnings(currentMonthBookings, appointmentsById);
+  const previousMonthEarnings = getBookingEarnings(previousMonthBookings, appointmentsById);
+  const earningsDelta =
+    previousMonthEarnings > 0 ? Math.max(currentMonthEarnings - previousMonthEarnings, 0) : 0;
+  const appointmentsDelta =
+    previousMonthBookings.length > 0
+      ? Math.max(currentMonthBookings.length - previousMonthBookings.length, 0)
+      : 0;
   const primaryValue = metric === 'earnings' ? formatCurrency(totalEarnings) : totalAppointments.toLocaleString();
   const increaseValue =
     metric === 'earnings'
-      ? `Up ${formatCurrency(Math.round(totalEarnings * 0.142))}`
-      : `Up ${Math.max(Math.round(totalAppointments * 0.18), 0)} appointments`;
+      ? `Up ${formatCurrency(earningsDelta)}`
+      : `Up ${appointmentsDelta} appointments`;
 
   const breakdown = useMemo(
     () =>
@@ -55,7 +66,7 @@ const Analytics = () => {
             id: appointment.id,
             name: appointment.name,
             value: metric === 'earnings' ? earning : count,
-            helper: metric === 'earnings' ? `Up ${formatCurrency(Math.round(earning * 0.12))}` : `Up ${Math.max(Math.round(count * 0.085), 0)} bookings`,
+            helper: 'Comparison coming soon',
           };
         })
         .sort((a, b) => b.value - a.value)
@@ -180,5 +191,21 @@ const SegmentButton = ({
 
 const formatCurrency = (value: number) =>
   `₦${Number(value || 0).toLocaleString('en-NG')}`;
+
+const getBookingsInMonth = (bookings: Array<{ date: string }>, date: Date) =>
+  bookings.filter(booking =>
+    isWithinInterval(parseISO(booking.date), {
+      start: startOfMonth(date),
+      end: endOfMonth(date),
+    }),
+  );
+
+const getBookingEarnings = (
+  bookings: Array<{ appointmentId: string; status: string }>,
+  appointmentsById: Map<string, { price: number }>,
+) =>
+  bookings
+    .filter(booking => EARNING_STATUSES.includes(booking.status))
+    .reduce((sum, booking) => sum + Number(appointmentsById.get(booking.appointmentId)?.price ?? 0), 0);
 
 export default Analytics;

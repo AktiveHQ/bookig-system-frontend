@@ -237,6 +237,12 @@ const toFeePolicy = (feeHandling: Business['feeHandling']) =>
 const isNotFoundError = (error: unknown) =>
   error instanceof Error && error.message.startsWith('API 404:');
 
+const getDateOffsetISO = (days: number) => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+};
+
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [business, setBusinessState] = useState<Business | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -290,7 +296,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         })
       );
-      setBookings(bookingsByService.flat());
+      const todayBookings = bookingsByService.flat();
+
+      try {
+        const params = new URLSearchParams({
+          from: getDateOffsetISO(-45),
+          to: getDateOffsetISO(45),
+        });
+        const historyRaw = await apiFetch(`/dashboard/bookings?${params.toString()}`);
+        const historyRows = Array.isArray(historyRaw) ? historyRaw : historyRaw?.items ?? [];
+        const historyBookings = historyRows.map((b: any) =>
+          toBooking(b, String(b?.serviceId ?? b?.appointmentId ?? b?.service?.id ?? ''), mappedBusiness.slug),
+        );
+        const merged = new Map<string, Booking>();
+        for (const row of todayBookings) merged.set(row.id, row);
+        for (const row of historyBookings) merged.set(row.id, row);
+        setBookings(Array.from(merged.values()));
+      } catch (error) {
+        console.error('Failed to load booking history', error);
+        setBookings(todayBookings);
+      }
 
       try {
         const notifRaw = await apiFetch('/dashboard/notifications');
@@ -628,7 +653,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const query = params.toString();
       const result = await apiFetch(`/dashboard/bookings${query ? `?${query}` : ''}`);
       const rows = Array.isArray(result) ? result : result?.items ?? [];
-      const mapped = rows.map((b: any) => toBooking(b, String(b?.serviceId ?? ''), business?.slug ?? ''));
+      const mapped = rows.map((b: any) =>
+        toBooking(b, String(b?.serviceId ?? b?.appointmentId ?? b?.service?.id ?? ''), business?.slug ?? ''),
+      );
 
       setBookings(prev => {
         const next = new Map<string, Booking>();
