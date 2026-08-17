@@ -15,10 +15,12 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import BusinessSetup from "./pages/setup/BusinessSetup";
 import SetupSuccess from "./pages/setup/SetupSuccess";
 import Dashboard from "./pages/dashboard/Dashboard";
+import Analytics from "./pages/dashboard/Analytics";
 import AppointmentDetail from "./pages/dashboard/AppointmentDetail";
 import BookingDetail from "./pages/dashboard/BookingDetail";
 import BookingsList from "./pages/dashboard/BookingsList";
 import BusinessEdit from "./pages/dashboard/BusinessEdit";
+import Account from "./pages/dashboard/Account";
 import CreateAppointment from "./pages/appointments/CreateAppointment";
 import AppointmentCreated from "./pages/appointments/AppointmentCreated";
 import BusinessPage from "./pages/client/BusinessPage";
@@ -83,10 +85,6 @@ const App = () => (
               <Route path="/signup" element={<Signup />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
 
-              <Route element={<ProtectedRoute />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-              </Route>
-
               <Route element={<ProtectedAppLayout />}>
                 {/* Business Setup */}
                 <Route path="/setup" element={<BusinessSetup />} />
@@ -94,10 +92,13 @@ const App = () => (
                 <Route path="/setup/success" element={<SetupSuccess />} />
 
                 {/* Dashboard */}
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/dashboard/analytics" element={<Analytics />} />
                 <Route path="/dashboard/bookings" element={<BookingsList />} />
                 <Route path="/dashboard/bookings/:bookingId" element={<BookingDetail />} />
                 <Route path="/dashboard/appointment/:id" element={<AppointmentDetail />} />
-                <Route path="/business/edit" element={<BusinessEdit />} />
+                <Route path="/business/edit" element={<Account />} />
+                <Route path="/business/edit/details" element={<BusinessEdit />} />
 
                 {/* Appointments */}
                 <Route path="/appointments/create" element={<CreateAppointment />} />

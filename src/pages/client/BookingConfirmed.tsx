@@ -8,6 +8,16 @@ const API_BASE = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
 ).replace(/\/$/, '');
 
+const formatIcsDate = (value: string) =>
+  new Date(value).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+const escapeIcsText = (value: string) =>
+  value
+    .replace(/\\/g, '\\\\')
+    .replace(/\n/g, '\\n')
+    .replace(/,/g, '\\,')
+    .replace(/;/g, '\\;');
+
 const BookingConfirmed = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
@@ -45,6 +55,7 @@ const BookingConfirmed = () => {
     reference ? 'sending' : 'idle',
   );
   const [calendarUrl, setCalendarUrl] = useState('');
+  const [calendarFilename, setCalendarFilename] = useState('aktivehq-booking.ics');
 
   useEffect(() => {
     if (!reference) return;
@@ -89,17 +100,35 @@ const BookingConfirmed = () => {
         const locationText = [business?.address, business?.city, business?.country]
           .filter(Boolean)
           .join(', ');
-        const toGoogleDate = (value: string) =>
-          new Date(value).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
-        const params = new URLSearchParams({
-          action: 'TEMPLATE',
-          text: `${serviceName} with ${businessName}`,
-          dates: `${toGoogleDate(booking.startAt)}/${toGoogleDate(booking.endAt)}`,
-          location: locationText,
-          details: ['Booking via AktiveHQ', `Booking reference: AKT-${booking.id}`].join('\n'),
-        });
+        const title = `${serviceName} with ${businessName}`;
+        const details = ['Booking via AktiveHQ', `Booking reference: AKT-${booking.id}`].join('\n');
+        const ics = [
+          'BEGIN:VCALENDAR',
+          'VERSION:2.0',
+          'PRODID:-//AktiveHQ//Booking Calendar//EN',
+          'CALSCALE:GREGORIAN',
+          'METHOD:PUBLISH',
+          'BEGIN:VEVENT',
+          `UID:aktivehq-booking-${booking.id}@aktivehq`,
+          `DTSTAMP:${formatIcsDate(new Date().toISOString())}`,
+          `DTSTART:${formatIcsDate(booking.startAt)}`,
+          `DTEND:${formatIcsDate(booking.endAt)}`,
+          `SUMMARY:${escapeIcsText(title)}`,
+          `DESCRIPTION:${escapeIcsText(details)}`,
+          `LOCATION:${escapeIcsText(locationText)}`,
+          'END:VEVENT',
+          'END:VCALENDAR',
+        ].join('\r\n');
+        const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+        const objectUrl = URL.createObjectURL(blob);
         if (active) {
-          setCalendarUrl(`https://calendar.google.com/calendar/render?${params.toString()}`);
+          setCalendarUrl(previousUrl => {
+            if (previousUrl) URL.revokeObjectURL(previousUrl);
+            return objectUrl;
+          });
+          setCalendarFilename(`aktivehq-booking-${booking.id}.ics`);
+        } else {
+          URL.revokeObjectURL(objectUrl);
         }
       } catch (error) {
         console.error('[BookingConfirmed] Calendar details failed', error);
@@ -111,6 +140,12 @@ const BookingConfirmed = () => {
       active = false;
     };
   }, [bookingId, state?.appointmentName]);
+
+  useEffect(() => {
+    return () => {
+      if (calendarUrl) URL.revokeObjectURL(calendarUrl);
+    };
+  }, [calendarUrl]);
 
   if (!state) {
     return (
@@ -133,12 +168,14 @@ const BookingConfirmed = () => {
           )}
           {calendarUrl && (
             <Button
+              asChild
               variant="outline"
               className="mt-6 h-12 rounded-full border-[#020c1a]/20 px-8 text-[#020c1a]"
-              onClick={() => window.open(calendarUrl, '_blank', 'noopener,noreferrer')}
             >
-              <CalendarPlus className="mr-2 h-4 w-4" />
-              Add to Google Calendar
+              <a href={calendarUrl} download={calendarFilename}>
+                <CalendarPlus className="mr-2 h-4 w-4" />
+                Add to Calendar
+              </a>
             </Button>
           )}
           <Button 
@@ -177,12 +214,14 @@ const BookingConfirmed = () => {
         <div className="mt-10 grid w-full gap-3 sm:grid-cols-2">
           {calendarUrl && (
             <Button
+              asChild
               variant="outline"
               className="w-full h-12 rounded-full border-[#020c1a]/20 text-[#020c1a] hover:bg-[#020c1a]/[0.03] hover:text-[#020c1a] focus-visible:ring-[#020c1a] sm:col-span-2"
-              onClick={() => window.open(calendarUrl, '_blank', 'noopener,noreferrer')}
             >
-              <CalendarPlus className="mr-2 h-4 w-4" />
-              Add to Google Calendar
+              <a href={calendarUrl} download={calendarFilename}>
+                <CalendarPlus className="mr-2 h-4 w-4" />
+                Add to Calendar
+              </a>
             </Button>
           )}
           <Button

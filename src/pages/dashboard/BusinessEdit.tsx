@@ -175,7 +175,7 @@ const BusinessEdit = () => {
     }
 
     toast({ title: 'Business settings updated' });
-    navigate('/dashboard');
+    navigate('/business/edit');
   };
 
   const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
@@ -301,7 +301,7 @@ const BusinessEdit = () => {
 
       <div className="space-y-6 flex-1">
         <div>
-          <h1 className="text-2xl font-bold">Business settings</h1>
+          <h1 className="text-2xl font-bold">Business information</h1>
           <p className="text-sm text-muted-foreground mt-1">Update your business details and payouts</p>
         </div>
 

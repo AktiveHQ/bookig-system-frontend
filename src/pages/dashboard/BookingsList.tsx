@@ -1,340 +1,299 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, parseISO, isWithinInterval } from 'date-fns';
-import { ArrowLeft, CalendarDays, Search } from 'lucide-react';
-import { useData } from '@/contexts/DataContext';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { addDays, format, isAfter, isBefore, isSameDay, parseISO } from 'date-fns';
+import { CalendarDays, ChevronRight, ListFilter, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { useData } from '@/contexts/DataContext';
+import type { Appointment, Booking } from '@/types';
+import { cn } from '@/lib/utils';
 
-const PAID_BOOKING_STATUSES = ['confirmed', 'completed'];
+const ACTIVE_STATUSES = ['pending_payment', 'confirmed', 'completed'];
+const PAID_STATUSES = ['confirmed', 'completed'];
 
 const BookingsList = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     appointments,
     bookings,
     business,
+    fetchBookingHistory,
     refreshBookingsForDate,
   } = useData();
-  const [filterType, setFilterType] = useState<'day' | 'week' | 'month' | 'range'>('day');
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [rangeStart, setRangeStart] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [rangeEnd, setRangeEnd] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [serviceFilter, setServiceFilter] = useState('all');
-  const [query, setQuery] = useState('');
-  const [loading, setLoading] = useState(false);
+  const initialFilter = searchParams.get('filter') === 'upcoming' ? 'upcoming' : 'today';
+  const [filter, setFilter] = useState<'upcoming' | 'today' | 'past'>(initialFilter);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  useEffect(() => {
+    if (!business?.slug || appointments.length === 0) return;
+    void Promise.all(appointments.map(appointment => refreshBookingsForDate(appointment.id, today)));
+    void fetchBookingHistory({
+      from: format(addDays(new Date(), -30), 'yyyy-MM-dd'),
+      to: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+    });
+  }, [appointments, business?.slug, fetchBookingHistory, refreshBookingsForDate, today]);
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    next.set('filter', filter);
+    setSearchParams(next, { replace: true });
+  }, [filter]);
 
   const appointmentsById = useMemo(
     () => new Map(appointments.map(appointment => [appointment.id, appointment])),
     [appointments],
   );
 
-  // Calculate date range based on filter type
-  const getDateRange = () => {
-    const currentDate = parseISO(selectedDate);
-    switch (filterType) {
-      case 'day':
-        return { start: selectedDate, end: selectedDate };
-      case 'week': {
-        const weekStart = startOfWeek(currentDate);
-        const weekEnd = endOfWeek(currentDate);
+  const enrichedBookings = useMemo(
+    () =>
+      bookings
+        .filter(booking => ACTIVE_STATUSES.includes(booking.status))
+        .map(booking => ({
+          ...booking,
+          appointment: appointmentsById.get(booking.appointmentId),
+        })),
+    [appointmentsById, bookings],
+  );
+
+  const filteredBookings = useMemo(
+    () =>
+      enrichedBookings
+        .filter(booking => {
+          const date = parseISO(booking.date);
+          if (filter === 'today') return isSameDay(date, new Date());
+          if (filter === 'past') return isBefore(date, startOfToday());
+          return isAfter(date, startOfToday()) || isSameDay(date, new Date());
+        })
+        .sort((a, b) => {
+          const comparison = `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`);
+          return filter === 'past' ? comparison * -1 : comparison;
+        }),
+    [enrichedBookings, filter],
+  );
+
+  const calendarGroups = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, index) => {
+        const date = addDays(new Date(), index);
+        const key = format(date, 'yyyy-MM-dd');
         return {
-          start: format(weekStart, 'yyyy-MM-dd'),
-          end: format(weekEnd, 'yyyy-MM-dd'),
+          date,
+          bookings: enrichedBookings
+            .filter(booking => booking.date === key)
+            .sort((a, b) => a.time.localeCompare(b.time)),
         };
-      }
-      case 'month': {
-        const monthStart = startOfMonth(currentDate);
-        const monthEnd = endOfMonth(currentDate);
-        return {
-          start: format(monthStart, 'yyyy-MM-dd'),
-          end: format(monthEnd, 'yyyy-MM-dd'),
-        };
-      }
-      case 'range':
-        return { start: rangeStart, end: rangeEnd };
-      default:
-        return { start: selectedDate, end: selectedDate };
-    }
-  };
-
-  const { start: dateRangeStart, end: dateRangeEnd } = getDateRange();
-
-  useEffect(() => {
-    if (!business?.slug || appointments.length === 0) return;
-
-    let active = true;
-    const load = async () => {
-      setLoading(true);
-      try {
-        // For day filter, just refresh that date. For other filters, refresh date range
-        if (filterType === 'day') {
-          await Promise.all(
-            appointments.map(appointment =>
-              refreshBookingsForDate(appointment.id, selectedDate),
-            ),
-          );
-        } else {
-          // For week/month/range, refresh all dates in the range
-          const startDate = parseISO(dateRangeStart);
-          const endDate = parseISO(dateRangeEnd);
-          let currentDate = startDate;
-          const datesToRefresh: string[] = [];
-          
-          while (currentDate <= endDate) {
-            datesToRefresh.push(format(currentDate, 'yyyy-MM-dd'));
-            currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000);
-          }
-
-          await Promise.all(
-            appointments.flatMap(appointment =>
-              datesToRefresh.map(date => refreshBookingsForDate(appointment.id, date)),
-            ),
-          );
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-
-    void load();
-    return () => {
-      active = false;
-    };
-  }, [appointments, business?.slug, refreshBookingsForDate, selectedDate, filterType, dateRangeStart, dateRangeEnd]);
-
-  const filteredBookings = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-
-    return bookings
-      .filter(booking => {
-        const bookingDate = parseISO(booking.date);
-        const rangeStartDate = parseISO(dateRangeStart);
-        const rangeEndDate = parseISO(dateRangeEnd);
-        return isWithinInterval(bookingDate, {
-          start: rangeStartDate,
-          end: new Date(rangeEndDate.getTime() + 24 * 60 * 60 * 1000 - 1), // Include end date
-        });
-      })
-      .filter(booking => PAID_BOOKING_STATUSES.includes(booking.status))
-      .filter(booking =>
-        serviceFilter === 'all' ? true : booking.appointmentId === serviceFilter,
-      )
-      .filter(booking => {
-        if (!normalizedQuery) return true;
-        const serviceName = appointmentsById.get(booking.appointmentId)?.name ?? '';
-        return [booking.clientName, booking.clientEmail, serviceName]
-          .join(' ')
-          .toLowerCase()
-          .includes(normalizedQuery);
-      })
-      .sort((a, b) => {
-        const dateCompare = a.date.localeCompare(b.date);
-        return dateCompare !== 0 ? dateCompare : a.time.localeCompare(b.time);
-      });
-  }, [appointmentsById, bookings, query, dateRangeStart, dateRangeEnd, serviceFilter]);
-
-  const formatTime = (time: string) => {
-    const [h, m] = time.split(':').map(Number);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const hour = h % 12 || 12;
-    return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
-  };
+      }),
+    [enrichedBookings],
+  );
 
   return (
-    <div className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
-      <main className="mx-auto w-full max-w-6xl">
-        <header className="flex flex-col gap-4 border-b pb-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-10 w-10 rounded-full"
-              onClick={() => navigate('/dashboard')}
-              aria-label="Back to dashboard"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <p className="text-sm text-muted-foreground">{business?.name || 'Dashboard'}</p>
-              <h1 className="text-2xl font-bold">Bookings</h1>
-            </div>
+    <div className="min-h-screen bg-background px-4 py-5 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-5xl space-y-7">
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Bookings</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{enrichedBookings.length} total</p>
           </div>
           <Button
-            variant="outline"
-            className="h-10 rounded-full gap-2"
-            onClick={() => navigate('/appointments/create')}
+            className="h-10 shrink-0 rounded-full gap-2"
+            onClick={() => navigate('/dashboard/bookings?filter=upcoming&create=appointment')}
           >
-            Add service
+            <Plus className="h-4 w-4" />
+            Appointment
           </Button>
         </header>
 
-        <section className="mt-5 grid gap-3 md:grid-cols-[140px_180px_220px_minmax(0,1fr)]">
-          <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
-            <SelectTrigger className="h-11 rounded-xl">
-              <SelectValue placeholder="Filter type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="day">Per Day</SelectItem>
-              <SelectItem value="week">Per Week</SelectItem>
-              <SelectItem value="month">Per Month</SelectItem>
-              <SelectItem value="range">Date Range</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <div className="relative">
-            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={event => setSelectedDate(event.target.value)}
-              className="h-11 rounded-xl pl-9"
-            />
+        <section className="flex items-center gap-3">
+          <div className="grid min-w-0 flex-1 grid-cols-3 rounded-full border bg-card p-1">
+            {(['upcoming', 'today', 'past'] as const).map(item => (
+              <button
+                key={item}
+                className={cn(
+                  'h-9 rounded-full text-sm font-medium capitalize',
+                  filter === item && 'bg-foreground text-background',
+                )}
+                onClick={() => {
+                  setFilter(item);
+                  setShowCalendar(false);
+                }}
+              >
+                {item}
+              </button>
+            ))}
           </div>
-
-          {filterType === 'range' && (
-            <div className="relative">
-              <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="date"
-                value={rangeEnd}
-                onChange={event => setRangeEnd(event.target.value)}
-                className="h-11 rounded-xl pl-9"
-                placeholder="To"
-              />
-            </div>
-          )}
-
-          {filterType === 'range' && (
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={event => setQuery(event.target.value)}
-                placeholder="Search client, email, or service"
-                className="h-11 rounded-xl pl-9"
-              />
-            </div>
-          )}
-
-          {filterType !== 'range' && (
-            <>
-              <Select value={serviceFilter} onValueChange={setServiceFilter}>
-                <SelectTrigger className="h-11 rounded-xl">
-                  <SelectValue placeholder="All services" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All services</SelectItem>
-                  {appointments.map(appointment => (
-                    <SelectItem key={appointment.id} value={appointment.id}>
-                      {appointment.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={query}
-                  onChange={event => setQuery(event.target.value)}
-                  placeholder="Search client, email, or service"
-                  className="h-11 rounded-xl pl-9"
-                />
-              </div>
-            </>
-          )}
-
-          {filterType === 'range' && (
-            <Select value={serviceFilter} onValueChange={setServiceFilter}>
-              <SelectTrigger className="h-11 rounded-xl">
-                <SelectValue placeholder="All services" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All services</SelectItem>
-                {appointments.map(appointment => (
-                  <SelectItem key={appointment.id} value={appointment.id}>
-                    {appointment.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          <button
+            className={cn(
+              'flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-card',
+              showCalendar && 'bg-foreground text-background',
+            )}
+            onClick={() => setShowCalendar(value => !value)}
+            aria-label="View calendar"
+          >
+            {showCalendar ? <CalendarDays className="h-5 w-5" /> : <ListFilter className="h-5 w-5" />}
+          </button>
         </section>
 
-        <section className="mt-5 overflow-hidden rounded-xl border">
-          <div className="flex items-center justify-between border-b px-4 py-3">
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium">
-                {filteredBookings.length} booking{filteredBookings.length === 1 ? '' : 's'}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {dateRangeStart === dateRangeEnd
-                  ? `${format(parseISO(dateRangeStart), 'MMM d, yyyy')}`
-                  : `${format(parseISO(dateRangeStart), 'MMM d')} - ${format(parseISO(dateRangeEnd), 'MMM d, yyyy')}`}
-              </p>
-            </div>
-            {loading && <p className="text-xs text-muted-foreground">Refreshing...</p>}
+        {showCalendar ? (
+          <CalendarPanel groups={calendarGroups} onOpenBooking={id => navigate(`/dashboard/bookings/${id}`)} />
+        ) : (
+          <section className="space-y-3">
+            {filteredBookings.length === 0 ? (
+              <div className="rounded-2xl border border-dashed bg-card p-5 text-center">
+                <p className="font-semibold">No {filter} bookings</p>
+                <p className="mt-1 text-sm text-muted-foreground">Bookings will appear here as clients reserve your services.</p>
+              </div>
+            ) : (
+              filteredBookings.map(booking => (
+                <BookingCard
+                  key={booking.id}
+                  booking={booking}
+                  appointment={booking.appointment}
+                  onClick={() => navigate(`/dashboard/bookings/${booking.id}`)}
+                />
+              ))
+            )}
+          </section>
+        )}
+
+        <section>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-lg font-bold">Services</h2>
+            <button
+              className="text-sm text-muted-foreground"
+              onClick={() => navigate('/appointments/create')}
+            >
+              Manage what you offer
+            </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Service</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Email</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredBookings.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-32 text-center text-sm text-muted-foreground">
-                      No paid bookings found for this filter.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredBookings.map(booking => {
-                    const appointment = appointmentsById.get(booking.appointmentId);
-                    return (
-                      <TableRow
-                        key={booking.id}
-                        className="cursor-pointer"
-                        onClick={() => navigate(`/dashboard/bookings/${booking.id}`)}
-                      >
-                        <TableCell className="font-medium">{booking.clientName || '-'}</TableCell>
-                        <TableCell>{appointment?.name || 'Service'}</TableCell>
-                        <TableCell>{booking.date}</TableCell>
-                        <TableCell>{formatTime(booking.time)}</TableCell>
-                        <TableCell>{booking.clientEmail || '-'}</TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+          <div className="overflow-hidden rounded-2xl border bg-card">
+            {appointments.length === 0 ? (
+              <div className="p-5 text-sm text-muted-foreground">No services yet.</div>
+            ) : (
+              appointments.map(appointment => (
+                <button
+                  key={appointment.id}
+                  className="flex w-full items-center justify-between gap-3 border-b px-4 py-4 text-left last:border-b-0 hover:bg-accent/60"
+                  onClick={() => navigate(`/dashboard/appointment/${appointment.id}`)}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold">{appointment.name}</span>
+                    <span className="mt-0.5 block text-sm text-muted-foreground">{appointment.duration} mins</span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2 font-semibold">
+                    {formatCurrency(appointment.price)}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </span>
+                </button>
+              ))
+            )}
           </div>
         </section>
       </main>
     </div>
   );
+};
+
+type BookingWithAppointment = Booking & { appointment?: Appointment };
+
+const BookingCard = ({
+  appointment,
+  booking,
+  onClick,
+}: {
+  appointment?: Appointment;
+  booking: BookingWithAppointment;
+  onClick: () => void;
+}) => {
+  const paid = PAID_STATUSES.includes(booking.status);
+  return (
+    <button className="w-full rounded-2xl border bg-card p-4 text-left shadow-sm" onClick={onClick}>
+      <p className="text-sm text-muted-foreground">{formatDate(booking.date)} · {formatTime(booking.time)}</p>
+      <div className="mt-5">
+        <h3 className="font-bold">{appointment?.name || booking.appointmentName || 'Service'}</h3>
+        <p className="mt-1 text-sm text-muted-foreground">{booking.clientName || 'Client'}</p>
+      </div>
+      <div className="mt-5 border-t pt-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="font-bold">{formatCurrency(Number(appointment?.price ?? 0))}</p>
+          <span className={cn('rounded-full px-3 py-1 text-xs font-semibold', paid ? 'bg-foreground text-background' : 'bg-accent text-primary')}>
+            {paid ? 'Paid' : 'Pending'}
+          </span>
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">{appointment?.duration ?? 0} mins</p>
+      </div>
+    </button>
+  );
+};
+
+const CalendarPanel = ({
+  groups,
+  onOpenBooking,
+}: {
+  groups: Array<{ date: Date; bookings: BookingWithAppointment[] }>;
+  onOpenBooking: (id: string) => void;
+}) => (
+  <section className="space-y-3">
+    {groups.map(group => (
+      <div key={group.date.toISOString()} className="rounded-2xl border bg-card p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <p className="font-bold">{isSameDay(group.date, new Date()) ? 'Today' : format(group.date, 'EEEE')}</p>
+            <p className="text-sm text-muted-foreground">{format(group.date, 'MMM d, yyyy')}</p>
+          </div>
+          <span className="rounded-full bg-accent px-3 py-1 text-xs font-semibold">{group.bookings.length}</span>
+        </div>
+        {group.bookings.length === 0 ? (
+          <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">No bookings scheduled.</p>
+        ) : (
+          <div className="space-y-2">
+            {group.bookings.map(booking => (
+              <button
+                key={booking.id}
+                className="flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left hover:bg-accent/60"
+                onClick={() => onOpenBooking(booking.id)}
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-bold">
+                    {booking.appointment?.name || booking.appointmentName || 'Service'}
+                  </span>
+                  <span className="mt-0.5 block truncate text-sm text-muted-foreground">
+                    {booking.clientName || 'Client'} · {formatTime(booking.time)}
+                  </span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    ))}
+  </section>
+);
+
+const startOfToday = () => {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return now;
+};
+
+const formatCurrency = (value: number) =>
+  `₦${Number(value || 0).toLocaleString('en-NG')}`;
+
+const formatTime = (time: string) => {
+  const [h, m] = time.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return time;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hour = h % 12 || 12;
+  return `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
+};
+
+const formatDate = (date: string) => {
+  if (!date) return '';
+  const parsed = parseISO(date);
+  if (isSameDay(parsed, new Date())) return 'Today';
+  return format(parsed, 'd MMM');
 };
 
 export default BookingsList;

@@ -1,14 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
+  BarChart3,
+  BriefcaseBusiness,
   CalendarDays,
+  CalendarPlus,
   Home,
   LogOut,
-  Menu,
-  PanelLeftClose,
-  PanelLeftOpen,
   Plus,
   Settings,
+  UserRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,256 +17,197 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from '@/components/ui/sheet';
 import { useAuth } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
 import { cn } from '@/lib/utils';
-
-const PAID_BOOKING_STATUSES = ['confirmed', 'completed'];
 
 interface AppLayoutProps {
   children: ReactNode;
   showSidebar?: boolean;
 }
 
-const SidebarButton = ({
-  icon,
-  label,
-  onClick,
-  active,
-  collapsed,
-}: {
-  icon: ReactNode;
-  label: string;
-  onClick: () => void;
-  active?: boolean;
-  collapsed?: boolean;
-}) => (
-  <button
-    onClick={onClick}
-    className={cn(
-      'w-full rounded-xl px-3 py-2 text-left text-sm transition-colors',
-      'hover:bg-accent',
-      active && 'bg-accent font-medium',
-      collapsed && 'flex justify-center px-0',
-    )}
-    title={collapsed ? label : undefined}
-  >
-    <div className="flex items-center gap-3">
-      {icon}
-      {!collapsed && label}
-    </div>
-  </button>
-);
+const navItems = [
+  { label: 'Home', path: '/dashboard', icon: Home },
+  { label: 'Analytics', path: '/dashboard/analytics', icon: BarChart3 },
+  { label: 'Bookings', path: '/dashboard/bookings', icon: CalendarDays },
+  { label: 'Account', path: '/business/edit', icon: UserRound },
+];
+
+const desktopItems = navItems;
 
 export const AppLayout = ({ children, showSidebar = true }: AppLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
-  const { appointments, bookings, business } = useData();
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const { business } = useData();
+  const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
-    setMobileOpen(false);
+    setCreateOpen(false);
   }, [location.pathname]);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const isActive = (path: string) => {
+    if (path === '/dashboard') return location.pathname === '/dashboard';
+    return location.pathname.startsWith(path);
+  };
+
+  const go = (path: string) => {
+    navigate(path);
+    setCreateOpen(false);
+  };
 
   const handleLogout = async () => {
     await logout();
     navigate('/');
   };
 
-  const go = (path: string) => {
-    navigate(path);
-    setMobileOpen(false);
-  };
+  const createSheet = (
+    <Sheet open={createOpen} onOpenChange={setCreateOpen}>
+      <SheetContent side="bottom" className="mx-auto max-w-md rounded-t-3xl px-5 pb-8">
+        <SheetHeader className="text-left">
+          <SheetTitle>What would you like to create?</SheetTitle>
+        </SheetHeader>
+        <div className="mt-5 overflow-hidden rounded-2xl border bg-card">
+          <button
+            className="flex w-full items-center gap-4 border-b px-4 py-4 text-left hover:bg-accent/60"
+            onClick={() => go('/dashboard/bookings?filter=upcoming&create=appointment')}
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <CalendarPlus className="h-5 w-5" />
+            </span>
+            <span>
+              <span className="block font-semibold">New Appointment</span>
+              <span className="mt-0.5 block text-sm text-muted-foreground">Book a customer manually</span>
+            </span>
+          </button>
+          <button
+            className="flex w-full items-center gap-4 px-4 py-4 text-left hover:bg-accent/60"
+            onClick={() => go('/appointments/create')}
+          >
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <BriefcaseBusiness className="h-5 w-5" />
+            </span>
+            <span>
+              <span className="block font-semibold">New Service</span>
+              <span className="mt-0.5 block text-sm text-muted-foreground">Add a service to your page</span>
+            </span>
+          </button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
 
   const sidebar = (
-    <div className="flex h-full flex-col">
-      <div className="border-b pb-5">
-        <div className="flex items-start justify-between gap-2">
-          {!collapsed && (
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">Business</p>
-              <h2 className="mt-1 truncate text-lg font-semibold">
-                {business?.name || 'Your business'}
-              </h2>
-              {business?.email && (
-                <p className="mt-1 truncate text-xs text-muted-foreground">{business.email}</p>
-              )}
-            </div>
+    <aside className="hidden border-r bg-background px-5 py-6 lg:block">
+      <div className="flex h-full flex-col">
+        <div className="border-b pb-5">
+          <p className="text-xs text-muted-foreground">Business</p>
+          <h2 className="mt-1 truncate text-lg font-semibold">{business?.name || 'Your business'}</h2>
+          {business?.email && (
+            <p className="mt-1 truncate text-xs text-muted-foreground">{business.email}</p>
           )}
-          <button
-            className="hidden rounded-full border p-2 hover:bg-accent lg:block"
-            onClick={() => setCollapsed(value => !value)}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {collapsed ? (
-              <PanelLeftOpen className="h-4 w-4" />
-            ) : (
-              <PanelLeftClose className="h-4 w-4" />
-            )}
-          </button>
-        </div>
-      </div>
-
-      <nav className="mt-6 space-y-1">
-        <SidebarButton
-          collapsed={collapsed}
-          icon={<Home className="h-4 w-4" />}
-          active={location.pathname === '/dashboard'}
-          label="Overview"
-          onClick={() => go('/dashboard')}
-        />
-        <SidebarButton
-          collapsed={collapsed}
-          icon={<CalendarDays className="h-4 w-4" />}
-          active={location.pathname === '/dashboard/bookings'}
-          label="Bookings"
-          onClick={() => go('/dashboard/bookings')}
-        />
-        <SidebarButton
-          collapsed={collapsed}
-          icon={<Settings className="h-4 w-4" />}
-          active={location.pathname === '/business/edit'}
-          label="Business settings"
-          onClick={() => go('/business/edit')}
-        />
-      </nav>
-
-      <div className="mt-6">
-        <div className={cn('mb-2 flex items-center gap-2 px-3', collapsed ? 'justify-center' : 'justify-between')}>
-          {!collapsed && (
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Services
-            </p>
-          )}
-          <button
-            className="rounded-full border p-1.5 hover:bg-accent"
-            onClick={() => go('/appointments/create')}
-            aria-label="Add service"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
         </div>
 
-        {!collapsed && (
-          <div className="space-y-1">
-            {appointments.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-muted-foreground">No services yet.</p>
-            ) : (
-              appointments.slice(0, 8).map(appointment => {
-                const bookingCount = bookings.filter(
-                  booking =>
-                    booking.appointmentId === appointment.id &&
-                    booking.date === today &&
-                    PAID_BOOKING_STATUSES.includes(booking.status),
-                ).length;
+        <nav className="mt-6 space-y-1">
+          {desktopItems.map(item => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.path}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-accent',
+                  isActive(item.path) && 'bg-accent font-medium text-primary',
+                )}
+                onClick={() => go(item.path)}
+              >
+                <Icon className="h-4 w-4" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
 
-                return (
-                  <button
-                    key={appointment.id}
-                    className={cn(
-                      'w-full rounded-xl px-3 py-2 text-left hover:bg-accent',
-                      location.pathname === `/dashboard/appointment/${appointment.id}` && 'bg-accent',
-                    )}
-                    onClick={() => go(`/dashboard/appointment/${appointment.id}`)}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm">{appointment.name}</span>
-                      <span className="shrink-0 text-xs text-muted-foreground">{bookingCount}</span>
-                    </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {appointment.paused ? 'Paused' : 'Active'}
-                    </p>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        )}
-      </div>
+        <Button className="mt-6 h-11 rounded-full gap-2" onClick={() => setCreateOpen(true)}>
+          <Plus className="h-4 w-4" />
+          Create
+        </Button>
 
-      <div className="mt-auto pt-6">
         <Button
           variant="outline"
-          className={cn('w-full rounded-full gap-2', collapsed ? 'justify-center px-0' : 'justify-start')}
+          className="mt-auto h-11 justify-start rounded-full gap-2"
           onClick={handleLogout}
         >
           <LogOut className="h-4 w-4" />
-          {!collapsed && 'Log out'}
+          Log out
         </Button>
       </div>
-    </div>
+    </aside>
   );
 
-  if (!showSidebar) {
-    return (
-      <div className="min-h-screen">
-        <div className="sticky top-0 z-30 flex items-center justify-between border-b bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{business?.name || 'Menu'}</p>
-          </div>
-          <Sheet
-            open={mobileOpen}
-            onOpenChange={open => setMobileOpen(open)}
-          >
-            <SheetTrigger asChild>
-              <button className="rounded-full border p-2 hover:bg-accent" aria-label="Open menu">
-                <Menu className="h-5 w-5" />
-              </button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-80">
-              <SheetHeader>
-                <SheetTitle>Menu</SheetTitle>
-              </SheetHeader>
-              <div className="mt-6 h-[calc(100%-3rem)]">{sidebar}</div>
-            </SheetContent>
-          </Sheet>
-        </div>
-        <main className="w-full">{children}</main>
-      </div>
-    );
-  }
-
   return (
-    <div className={cn('min-h-screen lg:grid', collapsed ? 'lg:grid-cols-[84px_minmax(0,1fr)]' : 'lg:grid-cols-[280px_minmax(0,1fr)]')}>
-      <aside className="hidden border-r bg-background px-5 py-6 lg:block">
-        {sidebar}
-      </aside>
-
+    <div className={cn('min-h-screen bg-background', showSidebar && 'lg:grid lg:grid-cols-[280px_minmax(0,1fr)]')}>
+      {showSidebar && sidebar}
       <div className="min-w-0">
-        <div className="sticky top-0 z-30 flex items-center justify-between border-b bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{business?.name || 'Dashboard'}</p>
-          </div>
-          <Sheet
-            open={mobileOpen}
-            onOpenChange={open => {
-              setMobileOpen(open);
-              if (open) setCollapsed(false);
-            }}
-          >
-            <SheetTrigger asChild>
-              <button className="rounded-full border p-2 hover:bg-accent" aria-label="Open menu">
-                <Menu className="h-5 w-5" />
-              </button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-80">
-              <SheetHeader>
-                <SheetTitle>Menu</SheetTitle>
-              </SheetHeader>
-              <div className="mt-6 h-[calc(100%-3rem)]">{sidebar}</div>
-            </SheetContent>
-          </Sheet>
-        </div>
-        <main className="w-full">{children}</main>
+        <main className="w-full pb-24 lg:pb-0">{children}</main>
       </div>
+
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-2 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-5 items-end">
+          {navItems.slice(0, 2).map(item => (
+            <BottomNavItem
+              key={item.path}
+              active={isActive(item.path)}
+              icon={item.icon}
+              label={item.label}
+              onClick={() => go(item.path)}
+            />
+          ))}
+          <button
+            className="mx-auto -mt-7 flex h-14 w-14 items-center justify-center rounded-full border-4 border-background bg-primary text-primary-foreground shadow-lg shadow-primary/30"
+            onClick={() => setCreateOpen(true)}
+            aria-label="Create"
+          >
+            <Plus className="h-7 w-7" />
+          </button>
+          {navItems.slice(2).map(item => (
+            <BottomNavItem
+              key={item.path}
+              active={isActive(item.path)}
+              icon={item.icon}
+              label={item.label}
+              onClick={() => go(item.path)}
+            />
+          ))}
+        </div>
+      </nav>
+
+      {createSheet}
     </div>
   );
 };
+
+const BottomNavItem = ({
+  active,
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  icon: typeof Home;
+  label: string;
+  onClick: () => void;
+}) => (
+  <button
+    className={cn(
+      'flex min-w-0 flex-col items-center gap-1 px-1 text-[11px] text-muted-foreground',
+      active && 'font-medium text-primary',
+    )}
+    onClick={onClick}
+  >
+    <Icon className="h-5 w-5" />
+    <span className="truncate">{label}</span>
+  </button>
+);
 
 export default AppLayout;
