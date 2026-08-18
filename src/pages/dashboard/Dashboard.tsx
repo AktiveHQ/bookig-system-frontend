@@ -8,11 +8,11 @@ import {
   subDays,
 } from 'date-fns';
 import {
+  ArrowRight,
   Bell,
   BriefcaseBusiness,
   CalendarDays,
   Copy,
-  MoreVertical,
   Plus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -112,22 +112,33 @@ const Dashboard = () => {
           </button>
         )}
 
-        <button
+        <section
           className="w-full rounded-2xl bg-[#111827] p-5 text-left text-white shadow-sm"
-          onClick={() => navigate('/dashboard/analytics')}
         >
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wide text-white/65">Today's Earnings</p>
-            <MoreVertical className="h-5 w-5 text-white/60" />
           </div>
           <p className="mt-7 text-4xl font-extrabold tracking-tight">{formatCurrency(todayEarnings)}</p>
           <p className="mt-4 inline-flex rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-300">
             Up {formatCurrency(earningsDelta)} from yesterday
           </p>
-          <div className="mt-5 border-t border-white/10 pt-4">
-            <p className="text-sm font-medium text-white/75">View all earnings</p>
+          <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/10 pt-4">
+            <button
+              className="flex min-w-0 items-center justify-between gap-2 rounded-xl bg-white/10 px-3 py-3 text-left text-sm font-semibold text-white/85 hover:bg-white/15"
+              onClick={() => navigate('/dashboard/transactions?tab=earnings')}
+            >
+              <span className="truncate">View earnings</span>
+              <ArrowRight className="h-4 w-4 shrink-0" />
+            </button>
+            <button
+              className="flex min-w-0 items-center justify-between gap-2 rounded-xl bg-white/10 px-3 py-3 text-left text-sm font-semibold text-white/85 hover:bg-white/15"
+              onClick={() => navigate('/dashboard/transactions?tab=payouts')}
+            >
+              <span className="truncate">Payout history</span>
+              <ArrowRight className="h-4 w-4 shrink-0" />
+            </button>
           </div>
-        </button>
+        </section>
 
         <section className="grid grid-cols-2 gap-3">
           <SummaryCard

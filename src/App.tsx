@@ -21,6 +21,7 @@ import BookingDetail from "./pages/dashboard/BookingDetail";
 import BookingsList from "./pages/dashboard/BookingsList";
 import BusinessEdit from "./pages/dashboard/BusinessEdit";
 import Account from "./pages/dashboard/Account";
+import Transactions from "./pages/dashboard/Transactions";
 import CreateAppointment from "./pages/appointments/CreateAppointment";
 import AppointmentCreated from "./pages/appointments/AppointmentCreated";
 import BusinessPage from "./pages/client/BusinessPage";
@@ -94,6 +95,7 @@ const App = () => (
                 {/* Dashboard */}
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/dashboard/analytics" element={<Analytics />} />
+                <Route path="/dashboard/transactions" element={<Transactions />} />
                 <Route path="/dashboard/bookings" element={<BookingsList />} />
                 <Route path="/dashboard/bookings/:bookingId" element={<BookingDetail />} />
                 <Route path="/dashboard/appointment/:id" element={<AppointmentDetail />} />
