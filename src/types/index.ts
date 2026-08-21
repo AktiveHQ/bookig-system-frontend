@@ -9,9 +9,6 @@ export interface Business {
   email: string;
   phone?: string;
   headerImageUrl?: string | null;
-  idVerificationType?: 'NIN' | 'PASSPORT' | 'VOTERS_CARD' | null;
-  idDocumentData?: string | null;
-  cacDocumentData?: string | null;
   verificationStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null;
   verificationComment?: string | null;
   feeHandling: 'customer' | 'business';

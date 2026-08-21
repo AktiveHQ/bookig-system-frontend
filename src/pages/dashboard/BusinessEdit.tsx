@@ -9,10 +9,52 @@ import BankSelect from '@/components/shared/BankSelect';
 import WelcomeBackNote from '@/components/shared/WelcomeBackNote';
 import { toast } from '@/hooks/use-toast';
 import { ArrowRight, Loader2, Upload } from 'lucide-react';
+import type { Business } from '@/types';
+import { cn } from '@/lib/utils';
 
 const API_BASE = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
 ).trim().replace(/\/$/, '');
+
+const NIGERIAN_STATES = [
+  'Abia',
+  'Adamawa',
+  'Akwa Ibom',
+  'Anambra',
+  'Bauchi',
+  'Bayelsa',
+  'Benue',
+  'Borno',
+  'Cross River',
+  'Delta',
+  'Ebonyi',
+  'Edo',
+  'Ekiti',
+  'Enugu',
+  'FCT',
+  'Gombe',
+  'Imo',
+  'Jigawa',
+  'Kaduna',
+  'Kano',
+  'Katsina',
+  'Kebbi',
+  'Kogi',
+  'Kwara',
+  'Lagos',
+  'Nasarawa',
+  'Niger',
+  'Ogun',
+  'Ondo',
+  'Osun',
+  'Oyo',
+  'Plateau',
+  'Rivers',
+  'Sokoto',
+  'Taraba',
+  'Yobe',
+  'Zamfara',
+];
 
 const getResponseErrorMessage = async (response: Response, fallback: string) => {
   try {
@@ -39,10 +81,7 @@ const BusinessEdit = () => {
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
   const [bookingImage, setBookingImage] = useState('');
-  const [idVerificationType, setIdVerificationType] = useState<'NIN' | 'PASSPORT' | 'VOTERS_CARD' | ''>('');
-  const [idDocumentData, setIdDocumentData] = useState<string>('');
-  const [cacDocumentData, setCacDocumentData] = useState<string>('');
-  const feeHandling: 'customer' | 'business' = 'customer';
+  const [feeHandling, setFeeHandling] = useState<Business['feeHandling']>('customer');
   const [accountHolder, setAccountHolder] = useState('');
   const [bankName, setBankName] = useState('');
   const [bankCode, setBankCode] = useState('');
@@ -50,8 +89,6 @@ const BusinessEdit = () => {
   const [resolvingAccount, setResolvingAccount] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const idDocInputRef = useRef<HTMLInputElement>(null);
-  const cacDocInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!business) return;
@@ -62,9 +99,7 @@ const BusinessEdit = () => {
     setCity(business.city);
     setAddress(business.address);
     setBookingImage(business.headerImageUrl || '');
-    setIdVerificationType((business.idVerificationType as any) || '');
-    setIdDocumentData(business.idDocumentData || '');
-    setCacDocumentData(business.cacDocumentData || '');
+    setFeeHandling(business.feeHandling || 'customer');
     setAccountHolder(business.accountHolderName);
     setBankName(business.bankName);
     setBankCode(business.bankCode || '');
@@ -154,9 +189,6 @@ const BusinessEdit = () => {
       city,
       address,
       headerImageUrl: bookingImage ? bookingImage : null,
-      idVerificationType: idVerificationType ? idVerificationType : null,
-      idDocumentData: idDocumentData ? idDocumentData : null,
-      cacDocumentData: cacDocumentData ? cacDocumentData : null,
       feeHandling,
       accountHolderName: accountHolder,
       bankName,
@@ -209,73 +241,6 @@ const BusinessEdit = () => {
       }
     };
     reader.readAsDataURL(file);
-  };
-
-  const handleDocUpload = (
-    event: ChangeEvent<HTMLInputElement>,
-    setter: (value: string) => void,
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const isAllowed =
-      file.type.startsWith('image/') || file.type === 'application/pdf';
-    if (!isAllowed) {
-      toast({
-        title: 'Invalid file type',
-        description: 'Please upload an image or PDF file.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const maxSizeInBytes = 5 * 1024 * 1024;
-    if (file.size > maxSizeInBytes) {
-      toast({
-        title: 'File too large',
-        description: 'Please use a file smaller than 5MB.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === 'string') {
-        setter(result);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const renderDocPreview = (dataUrl: string, label: string) => {
-    if (!dataUrl) return null;
-    if (dataUrl.startsWith('data:image/')) {
-      return (
-        <img
-          src={dataUrl}
-          alt={`${label} preview`}
-          className="h-24 w-24 rounded-xl object-cover border"
-        />
-      );
-    }
-    if (dataUrl.startsWith('data:application/pdf')) {
-      return (
-        <div className="text-xs text-muted-foreground text-center">
-          <p className="font-medium text-foreground">PDF selected</p>
-          <a
-            href={dataUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
-          >
-            Preview PDF
-          </a>
-        </div>
-      );
-    }
-    return null;
   };
 
   if (!business) {
@@ -345,8 +310,17 @@ const BusinessEdit = () => {
                   <Input value={country} disabled className="h-12 rounded-xl" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">City</label>
-                  <Input value={city} onChange={e => setCity(e.target.value)} className="h-12 rounded-xl" />
+                  <label className="text-sm font-medium">State</label>
+                  <select
+                    value={city}
+                    onChange={e => setCity(e.target.value)}
+                    className="h-12 w-full rounded-xl border bg-background px-3 text-sm"
+                  >
+                    <option value="">Select state</option>
+                    {NIGERIAN_STATES.map(item => (
+                      <option key={item} value={item}>{item}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
                   <label className="text-sm font-medium">Business Address</label>
@@ -399,108 +373,6 @@ const BusinessEdit = () => {
           <div className="space-y-6">
             <div className="border rounded-2xl p-5 space-y-4">
               <div>
-                <p className="text-sm font-semibold">Verification documents</p>
-                <p className="text-xs text-muted-foreground mt-1">Upload clear documents so admin can approve your account.</p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">ID Verification (select)</label>
-                  <select
-                    value={idVerificationType}
-                    onChange={e => setIdVerificationType(e.target.value as any)}
-                    className="h-12 rounded-xl border bg-background px-3 text-sm w-full"
-                  >
-                    <option value="">Select ID type</option>
-                    <option value="NIN">NIN</option>
-                    <option value="PASSPORT">Passport</option>
-                    <option value="VOTERS_CARD">Voters card</option>
-                  </select>
-                  <p className="text-xs text-muted-foreground">
-                    Choose the ID you want to use for verification.
-                  </p>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium">ID Upload</label>
-                    <div
-                      className="border-2 border-dashed rounded-xl min-h-40 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-accent/50 transition-colors p-4"
-                      onClick={() => idDocInputRef.current?.click()}
-                    >
-                      {idDocumentData ? (
-                        renderDocPreview(idDocumentData, 'ID document')
-                      ) : (
-                        <Upload className="h-8 w-8 text-muted-foreground" />
-                      )}
-                      <p className="text-sm text-muted-foreground text-center">
-                        {idDocumentData ? 'Tap to change document' : 'Upload identification (image/PDF)'}
-                      </p>
-                      <input
-                        ref={idDocInputRef}
-                        type="file"
-                        accept="image/*,application/pdf"
-                        className="hidden"
-                        onChange={e => handleDocUpload(e, setIdDocumentData)}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Upload a clear photo or PDF (max 5MB).
-                    </p>
-                    {idDocumentData && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-10 rounded-full mt-2"
-                        onClick={() => setIdDocumentData('')}
-                      >
-                        Remove ID
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Business Document (CAC)</label>
-                    <div
-                      className="border-2 border-dashed rounded-xl min-h-40 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-accent/50 transition-colors p-4"
-                      onClick={() => cacDocInputRef.current?.click()}
-                    >
-                      {cacDocumentData ? (
-                        renderDocPreview(cacDocumentData, 'CAC document')
-                      ) : (
-                        <Upload className="h-8 w-8 text-muted-foreground" />
-                      )}
-                      <p className="text-sm text-muted-foreground text-center">
-                        {cacDocumentData ? 'Tap to change document' : 'Upload CAC (image/PDF)'}
-                      </p>
-                      <input
-                        ref={cacDocInputRef}
-                        type="file"
-                        accept="image/*,application/pdf"
-                        className="hidden"
-                        onChange={e => handleDocUpload(e, setCacDocumentData)}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Upload your CAC/registration document (max 5MB).
-                    </p>
-                    {cacDocumentData && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-10 rounded-full mt-2"
-                        onClick={() => setCacDocumentData('')}
-                      >
-                        Remove CAC
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="border rounded-2xl p-5 space-y-4">
-              <div>
                 <p className="text-sm font-semibold">Payout details</p>
                 <p className="text-xs text-muted-foreground mt-1">Where we should send money from successful bookings.</p>
               </div>
@@ -508,13 +380,34 @@ const BusinessEdit = () => {
               <div>
                 <p className="text-sm font-medium mb-2">Fee Handling</p>
                 <div className="space-y-2">
-                  <div className="flex items-start gap-3 p-3 border rounded-xl bg-accent border-foreground">
-                    <input type="radio" checked readOnly className="mt-1" />
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex w-full items-start gap-3 rounded-xl border p-3 text-left',
+                      feeHandling === 'customer' ? 'border-foreground bg-accent' : 'bg-background',
+                    )}
+                    onClick={() => setFeeHandling('customer')}
+                  >
+                    <input type="radio" checked={feeHandling === 'customer'} readOnly className="mt-1" />
                     <div>
                       <p className="text-sm font-medium">Customer pays the fee</p>
                       <p className="text-xs text-muted-foreground">The service fee/service charge is added on top of booking</p>
                     </div>
-                  </div>
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex w-full items-start gap-3 rounded-xl border p-3 text-left',
+                      feeHandling === 'business' ? 'border-foreground bg-accent' : 'bg-background',
+                    )}
+                    onClick={() => setFeeHandling('business')}
+                  >
+                    <input type="radio" checked={feeHandling === 'business'} readOnly className="mt-1" />
+                    <div>
+                      <p className="text-sm font-medium">Business pays the fee</p>
+                      <p className="text-xs text-muted-foreground">The service fee/service charge is deducted from your earnings</p>
+                    </div>
+                  </button>
                 </div>
               </div>
 
