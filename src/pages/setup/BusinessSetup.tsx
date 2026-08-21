@@ -63,13 +63,13 @@ const NIGERIAN_STATES = [
 ];
 
 const DAYS = [
-  { label: 'M', value: 1 },
-  { label: 'T', value: 2 },
-  { label: 'W', value: 3 },
-  { label: 'T', value: 4 },
-  { label: 'F', value: 5 },
-  { label: 'S', value: 6 },
-  { label: 'S', value: 0 },
+  { label: 'Sun', value: 0 },
+  { label: 'Mon', value: 1 },
+  { label: 'Tue', value: 2 },
+  { label: 'Wed', value: 3 },
+  { label: 'Thu', value: 4 },
+  { label: 'Fri', value: 5 },
+  { label: 'Sat', value: 6 },
 ];
 const DURATION_OPTIONS = [30, 45, 60, 90, 120];
 const MAX_BOOKINGS_PER_SLOT_OPTIONS = [1, 2, 3, 4, 5];
@@ -130,7 +130,7 @@ const BusinessSetup = () => {
   const [serviceDescription, setServiceDescription] = useState('');
   const [servicePrice, setServicePrice] = useState('');
   const [duration, setDuration] = useState(45);
-  const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5, 6]);
+  const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('18:00');
   const [maxBookingsPerSlot, setMaxBookingsPerSlot] = useState(1);
@@ -161,7 +161,7 @@ const BusinessSetup = () => {
       setServiceDescription(String(draft.serviceDescription ?? ''));
       setServicePrice(String(draft.servicePrice ?? ''));
       setDuration(Number(draft.duration ?? 45));
-      setSelectedDays(Array.isArray(draft.selectedDays) ? draft.selectedDays.map(Number) : [1, 2, 3, 4, 5, 6]);
+      setSelectedDays(Array.isArray(draft.selectedDays) ? draft.selectedDays.map(Number) : [1, 2, 3, 4, 5]);
       setStartTime(String(draft.startTime ?? '09:00'));
       setEndTime(String(draft.endTime ?? '18:00'));
       setMaxBookingsPerSlot(Number(draft.maxBookingsPerSlot ?? 1));
@@ -611,7 +611,7 @@ const BusinessSetup = () => {
       <div className="space-y-5">
         <div>
           <p className="mb-3 text-sm font-semibold">Available days</p>
-          <div className="grid grid-cols-7 gap-2">
+          <div className="flex flex-wrap gap-2">
             {DAYS.map(day => {
               const selected = selectedDays.includes(day.value);
               return (
@@ -619,12 +619,11 @@ const BusinessSetup = () => {
                   key={`${day.label}-${day.value}`}
                   type="button"
                   onClick={() => toggleDay(day.value)}
-                  className={`flex h-10 flex-col items-center justify-center rounded-xl text-xs font-bold ${
+                  className={`h-12 min-w-12 rounded-full px-4 text-sm font-medium transition-colors ${
                     selected ? 'bg-[#020c1a] text-white' : 'border bg-card text-muted-foreground'
                   }`}
                 >
-                  <span>{day.label}</span>
-                  <span className={`mt-1 h-1.5 w-1.5 rounded-full ${selected ? 'bg-white' : 'bg-muted-foreground'}`} />
+                  {day.label}
                 </button>
               );
             })}

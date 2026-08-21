@@ -56,7 +56,7 @@ const AppointmentCreated = () => {
 
       <div className="w-full space-y-3">
         <Button
-          className="w-full h-12 rounded-full gap-2"
+          className="w-full h-12 rounded-xl gap-2"
           onClick={() => navigate(`/booking/${business?.slug}`)}
           disabled={!business?.slug}
         >
@@ -64,12 +64,12 @@ const AppointmentCreated = () => {
         </Button>
         <Button
           variant="outline"
-          className="w-full h-12 rounded-full gap-2"
+          className="w-full h-12 rounded-xl gap-2"
           onClick={() => navigate('/appointments/create')}
         >
           Create another appointment <ArrowRight className="h-4 w-4" />
         </Button>
-        <Button variant="outline" className="w-full h-12 rounded-full" onClick={() => navigate('/dashboard')}>
+        <Button variant="outline" className="w-full h-12 rounded-xl" onClick={() => navigate('/dashboard')}>
           Go to Dashboard
         </Button>
       </div>

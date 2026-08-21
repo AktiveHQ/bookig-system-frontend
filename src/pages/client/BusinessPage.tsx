@@ -317,7 +317,7 @@ const BusinessPage = () => {
                 )}
 
                 {selectedTime && (
-                  <Button onClick={handleContinue} className="w-full sm:w-auto sm:min-w-44 h-12 rounded-full gap-2 mt-4 bg-[#020c1a] text-white hover:bg-[#020c1a]/90">
+                  <Button onClick={handleContinue} className="w-full sm:w-auto sm:min-w-44 h-12 rounded-xl gap-2 mt-4 bg-[#020c1a] text-white hover:bg-[#020c1a]/90">
                     Continue <ArrowRight className="h-4 w-4" />
                   </Button>
                 )}

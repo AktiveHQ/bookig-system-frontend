@@ -52,7 +52,7 @@ const ForgotPassword = () => {
               <p className="text-sm text-muted-foreground">
                 We've sent a password reset link to <strong>{email}</strong>. Check your inbox.
               </p>
-              <Button variant="outline" className="w-full h-12 rounded-full" onClick={() => navigate('/login')}>
+              <Button variant="outline" className="w-full h-12 rounded-xl" onClick={() => navigate('/login')}>
                 Back to login
               </Button>
             </div>
@@ -70,7 +70,7 @@ const ForgotPassword = () => {
                 />
               </div>
 
-              <Button type="submit" className="w-full h-12 rounded-full gap-2" disabled={loading}>
+              <Button type="submit" className="w-full h-12 rounded-xl gap-2" disabled={loading}>
                 {loading ? 'Sending...' : 'Send reset link'}
                 <ArrowRight className="h-4 w-4" />
               </Button>

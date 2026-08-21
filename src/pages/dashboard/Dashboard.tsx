@@ -10,9 +10,9 @@ import {
 import {
   ArrowRight,
   Bell,
-  BriefcaseBusiness,
   CalendarDays,
   Copy,
+  LogOut,
   Plus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,7 @@ const EARNING_BOOKING_STATUSES = ['confirmed', 'completed'];
 const Dashboard = () => {
   const navigate = useNavigate();
   const { appointments, bookings, business } = useData();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const userName = getUserDisplayName(user?.displayName, user?.email);
   const today = format(new Date(), 'yyyy-MM-dd');
   const bookingLink =
@@ -57,18 +57,33 @@ const Dashboard = () => {
     [activeBookings, appointmentsById],
   );
 
-  const todayUpcoming = upcomingBookings.filter(booking => booking.date === today).length;
+  const todayUpcomingBookings = upcomingBookings.filter(booking => booking.date === today);
   const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
   const todayBookings = getBookingsOnDate(activeBookings, today);
   const yesterdayBookings = getBookingsOnDate(activeBookings, yesterday);
+  const allEarnings = getBookingEarnings(activeBookings, appointmentsById);
   const todayEarnings = getBookingEarnings(todayBookings, appointmentsById);
   const yesterdayEarnings = getBookingEarnings(yesterdayBookings, appointmentsById);
-  const earningsDelta =
-    yesterdayEarnings > 0 ? Math.max(todayEarnings - yesterdayEarnings, 0) : 0;
-  const bookingDelta =
-    yesterdayBookings.length > 0
-      ? Math.max(todayBookings.length - yesterdayBookings.length, 0)
-      : 0;
+  const earningsDelta = todayEarnings - yesterdayEarnings;
+  const bookingDelta = todayBookings.length - yesterdayBookings.length;
+  const workingDayEnded = hasWorkingDayEnded(appointments);
+  const earningsDeltaLabel = getDeltaLabel({
+    delta: earningsDelta,
+    formatter: formatCurrency,
+    workingDayEnded,
+    suffix: ' from yesterday',
+  });
+  const bookingsDeltaLabel = getDeltaLabel({
+    delta: bookingDelta,
+    formatter: value => value.toLocaleString('en-NG'),
+    workingDayEnded,
+    suffix: ' from yesterday',
+  });
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
 
   const handleCopyLink = async () => {
     if (!bookingLink) return;
@@ -93,10 +108,15 @@ const Dashboard = () => {
               <p className="truncate text-sm text-muted-foreground">Your business is looking good today.</p>
             </div>
           </div>
-          <button className="relative rounded-full border bg-card p-2.5" aria-label="Notifications">
-            <Bell className="h-5 w-5" />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button className="relative rounded-full border bg-card p-2.5" aria-label="Notifications">
+              <Bell className="h-5 w-5" />
+              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#6B4EFF]" />
+            </button>
+            <button className="rounded-full border bg-card p-2.5 lg:hidden" onClick={handleLogout} aria-label="Log out">
+              <LogOut className="h-5 w-5" />
+            </button>
+          </div>
         </header>
 
         {bookingLink && (
@@ -116,12 +136,18 @@ const Dashboard = () => {
           className="w-full rounded-2xl bg-[#111827] p-5 text-left text-white shadow-sm"
         >
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/65">Today's Earnings</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/65">Today's Earnings</p>
           </div>
           <p className="mt-7 text-4xl font-extrabold tracking-tight">{formatCurrency(todayEarnings)}</p>
-          <p className="mt-4 inline-flex rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-300">
-            Up {formatCurrency(earningsDelta)} from yesterday
-          </p>
+          {earningsDeltaLabel && (
+            <p className={`mt-4 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+              earningsDeltaLabel.tone === 'positive'
+                ? 'bg-emerald-500/15 text-emerald-300'
+                : 'bg-red-500/15 text-red-300'
+            }`}>
+              {earningsDeltaLabel.text}
+            </p>
+          )}
           <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/10 pt-4">
             <button
               className="flex min-w-0 items-center justify-between gap-2 rounded-xl bg-white/10 px-3 py-3 text-left text-sm font-semibold text-white/85 hover:bg-white/15"
@@ -141,16 +167,28 @@ const Dashboard = () => {
         </section>
 
         <section className="grid grid-cols-2 gap-3">
+          <button className="rounded-xl border bg-card p-3 text-left" onClick={() => navigate('/dashboard/analytics')}>
+            <p className="text-xs font-medium text-muted-foreground">Total earnings</p>
+            <p className="mt-1 text-base font-bold">{formatCurrency(allEarnings)}</p>
+          </button>
+          <button className="rounded-xl border bg-card p-3 text-left" onClick={() => navigate('/dashboard/analytics')}>
+            <p className="text-xs font-medium text-muted-foreground">Total bookings</p>
+            <p className="mt-1 text-base font-bold">{activeBookings.length.toLocaleString('en-NG')}</p>
+          </button>
+        </section>
+
+        <section className="grid grid-cols-2 gap-3">
           <SummaryCard
-            label="Upcoming Today"
-            value={todayUpcoming}
-            helper="Today"
+            label="Today's Bookings"
+            value={todayUpcomingBookings.length}
+            helper={bookingsDeltaLabel?.text}
+            tone={bookingsDeltaLabel?.tone}
             onClick={() => navigate('/dashboard/bookings?filter=upcoming')}
           />
           <SummaryCard
-            label="Total Bookings"
-            value={activeBookings.length}
-            helper={`Up ${bookingDelta} from yesterday`}
+            label="Upcoming Bookings"
+            value={upcomingBookings.length}
+            helper="Today and future"
             onClick={() => navigate('/dashboard/bookings')}
           />
         </section>
@@ -190,7 +228,7 @@ const Dashboard = () => {
           <div className="grid grid-cols-2 gap-3">
             <Button
               variant="outline"
-              className="h-12 rounded-full gap-2 bg-card"
+              className="h-12 rounded-xl gap-2 bg-card"
               onClick={() => navigate('/dashboard/bookings?filter=upcoming&create=appointment')}
             >
               <Plus className="h-4 w-4" />
@@ -198,7 +236,7 @@ const Dashboard = () => {
             </Button>
             <Button
               variant="outline"
-              className="h-12 rounded-full gap-2 bg-card"
+              className="h-12 rounded-xl gap-2 bg-card"
               onClick={() => navigate('/appointments/create')}
             >
               <Plus className="h-4 w-4" />
@@ -220,17 +258,25 @@ const SummaryCard = ({
   label,
   value,
   helper,
+  tone = 'neutral',
   onClick,
 }: {
   label: string;
   value: number;
-  helper: string;
+  helper?: string;
+  tone?: 'positive' | 'negative' | 'neutral';
   onClick: () => void;
 }) => (
   <button className="rounded-xl border bg-card p-4 text-left shadow-sm" onClick={onClick}>
     <p className="text-sm font-medium text-muted-foreground">{label}</p>
     <p className="mt-3 text-3xl font-extrabold">{value}</p>
-    <p className="mt-2 text-xs font-medium text-emerald-600">{helper}</p>
+    {helper && (
+      <p className={`mt-2 text-xs font-medium ${
+        tone === 'negative' ? 'text-red-600' : tone === 'positive' ? 'text-emerald-600' : 'text-muted-foreground'
+      }`}>
+        {helper}
+      </p>
+    )}
   </button>
 );
 
@@ -287,7 +333,11 @@ const getBookingEarnings = (
 ) =>
   bookings
     .filter(booking => EARNING_BOOKING_STATUSES.includes(booking.status))
-    .reduce((sum, booking) => sum + Number(appointmentsById.get(booking.appointmentId)?.price ?? 0), 0);
+    .reduce(
+      (sum, booking) =>
+        sum + Number(booking.payment?.vendorNetAmount ?? appointmentsById.get(booking.appointmentId)?.price ?? 0),
+      0,
+    );
 
 const formatCurrency = (value: number) =>
   `₦${Number(value || 0).toLocaleString('en-NG')}`;
@@ -315,6 +365,41 @@ const formatBookingDay = (date: string) => {
   const parsed = parseISO(date);
   if (isSameDay(parsed, new Date())) return 'Today';
   return format(parsed, 'MMM d');
+};
+
+const hasWorkingDayEnded = (appointments: Appointment[]) => {
+  const latestEnd = appointments.reduce((latest, appointment) => {
+    const minutes = getTimeInMinutes(appointment.endTime);
+    return Math.max(latest, minutes);
+  }, 18 * 60);
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes() >= latestEnd;
+};
+
+const getTimeInMinutes = (time: string) => {
+  const [hours, minutes] = time.split(':').map(Number);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return 0;
+  return hours * 60 + minutes;
+};
+
+const getDeltaLabel = ({
+  delta,
+  formatter,
+  suffix,
+  workingDayEnded,
+}: {
+  delta: number;
+  formatter: (value: number) => string;
+  suffix: string;
+  workingDayEnded: boolean;
+}): { text: string; tone: 'positive' | 'negative' } | null => {
+  if (delta > 0) {
+    return { text: `+${formatter(delta)}${suffix}`, tone: 'positive' };
+  }
+  if (workingDayEnded && delta < 0) {
+    return { text: `-${formatter(Math.abs(delta))}${suffix}`, tone: 'negative' };
+  }
+  return null;
 };
 
 export default Dashboard;

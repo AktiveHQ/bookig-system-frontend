@@ -10,8 +10,8 @@ All colors MUST be HSL.
   :root {
     /* Off-white (#FAFAFA) */
     --background: 0 0% 98%;
-    /* Primary text (#111111) */
-    --foreground: 0 0% 6.7%;
+    /* Primary text / CTA ink (#020c1a) */
+    --foreground: 215 85.7% 5.5%;
 
     --card: 0 0% 100%;
     --card-foreground: 0 0% 6.7%;
@@ -19,10 +19,10 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 6.7%;
 
-    /* Deep Purple (#6B4EFF) */
-    --primary: 249.8 100% 65.3%;
-    /* Hover Purple (#5A3EE6) */
-    --primary-hover: 250 77.1% 57.3%;
+    /* Deep navy (#020c1a) */
+    --primary: 215 85.7% 5.5%;
+    /* Hover navy (#06162b) */
+    --primary-hover: 215.3 75.8% 9.6%;
     --primary-foreground: 0 0% 100%;
 
     /* Soft Lavender Tint (#F6F2FF) */
@@ -42,7 +42,7 @@ All colors MUST be HSL.
     /* Card border (#F1E9E5) */
     --border: 20 30% 92.2%;
     --input: 20 30% 92.2%;
-    --ring: 249.8 100% 65.3%;
+    --ring: 215 85.7% 5.5%;
 
     /* Cards: 16px; Buttons: 12px via Tailwind rounded-sm */
     --radius: 1rem;

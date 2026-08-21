@@ -284,7 +284,7 @@ const BusinessEdit = () => {
         <BackButton />
         <div className="flex-1 flex flex-col justify-center text-center space-y-4">
           <p className="text-muted-foreground">No business profile found.</p>
-          <Button onClick={() => navigate('/setup')} className="h-12 rounded-full gap-2">
+          <Button onClick={() => navigate('/setup')} className="h-12 rounded-xl gap-2">
             Complete setup <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
@@ -556,7 +556,7 @@ const BusinessEdit = () => {
         </div>
 
         <div className="pt-2 flex justify-end">
-          <Button onClick={handleSave} disabled={saving || resolvingAccount} className="w-full md:w-auto h-12 rounded-full gap-2 md:px-10">
+          <Button onClick={handleSave} disabled={saving || resolvingAccount} className="w-full md:w-auto h-12 rounded-xl gap-2 md:px-10">
             {saving ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />

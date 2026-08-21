@@ -404,32 +404,32 @@ const BusinessReview = () => {
               className="h-12 rounded-xl"
             />
             <div className="flex gap-2 flex-wrap">
-              <Button type="button" variant="outline" className="h-10 rounded-full" onClick={() => setNotifyMessage(APPROVED_TEMPLATE)}>
+              <Button type="button" variant="outline" className="h-10 rounded-xl" onClick={() => setNotifyMessage(APPROVED_TEMPLATE)}>
                 Approved template
               </Button>
-              <Button type="button" variant="outline" className="h-10 rounded-full" onClick={() => setNotifyMessage(REUPLOAD_TEMPLATE)}>
+              <Button type="button" variant="outline" className="h-10 rounded-xl" onClick={() => setNotifyMessage(REUPLOAD_TEMPLATE)}>
                 Reupload template
               </Button>
-              <Button type="button" variant="outline" className="h-10 rounded-full" onClick={() => setNotifyMessage(FREEZE_TEMPLATE)}>
+              <Button type="button" variant="outline" className="h-10 rounded-xl" onClick={() => setNotifyMessage(FREEZE_TEMPLATE)}>
                 Freeze template
               </Button>
-              <Button type="button" variant="outline" className="h-10 rounded-full" onClick={() => setNotifyMessage(UNFREEZE_TEMPLATE)}>
+              <Button type="button" variant="outline" className="h-10 rounded-xl" onClick={() => setNotifyMessage(UNFREEZE_TEMPLATE)}>
                 Unfreeze template
               </Button>
             </div>
           </div>
 
           <div className="flex gap-2 flex-wrap">
-            <Button className="h-12 rounded-full" onClick={() => submitReview('APPROVED')}>
+            <Button className="h-12 rounded-xl" onClick={() => submitReview('APPROVED')}>
               Approve & send
             </Button>
-            <Button variant="destructive" className="h-12 rounded-full" onClick={() => submitReview('REJECTED')}>
+            <Button variant="destructive" className="h-12 rounded-xl" onClick={() => submitReview('REJECTED')}>
               Reject & send
             </Button>
-            <Button variant="outline" className="h-12 rounded-full" onClick={() => setFreeze(false)}>
+            <Button variant="outline" className="h-12 rounded-xl" onClick={() => setFreeze(false)}>
               Unfreeze
             </Button>
-            <Button variant="destructive" className="h-12 rounded-full" onClick={() => setFreeze(true)}>
+            <Button variant="destructive" className="h-12 rounded-xl" onClick={() => setFreeze(true)}>
               Freeze
             </Button>
           </div>

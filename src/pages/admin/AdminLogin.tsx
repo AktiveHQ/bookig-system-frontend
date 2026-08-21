@@ -85,7 +85,7 @@ const AdminLogin = () => {
               />
             </div>
 
-            <Button type="submit" className="w-full h-12 rounded-full gap-2" disabled={loading}>
+            <Button type="submit" className="w-full h-12 rounded-xl gap-2" disabled={loading}>
               {loading ? 'Signing in...' : 'Continue'}
               <ArrowRight className="h-4 w-4" />
             </Button>

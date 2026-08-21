@@ -111,7 +111,7 @@ const BookingsList = () => {
                 key={item}
                 className={cn(
                   'h-9 rounded-full text-sm font-medium capitalize',
-                  filter === item && 'bg-foreground text-background',
+                  filter === item && 'bg-[#020c1a] text-white',
                 )}
                 onClick={() => {
                   setFilter(item);

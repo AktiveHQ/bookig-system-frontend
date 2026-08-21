@@ -84,7 +84,7 @@ const CreateAppointment = () => {
         <BackButton onClick={() => navigate(-1)} />
         <div className="flex-1 flex flex-col justify-center text-center space-y-4">
           <p className="text-muted-foreground">Complete your business setup before creating appointments.</p>
-          <Button onClick={() => navigate('/setup')} className="h-12 rounded-full gap-2">
+          <Button onClick={() => navigate('/setup')} className="h-12 rounded-xl gap-2">
             Complete setup <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
@@ -106,7 +106,7 @@ const CreateAppointment = () => {
         <BackButton onClick={() => navigate(-1)} />
         <div className="flex-1 flex flex-col justify-center text-center space-y-4">
           <p className="text-muted-foreground">Appointment not found.</p>
-          <Button onClick={() => navigate('/dashboard')} className="h-12 rounded-full">
+          <Button onClick={() => navigate('/dashboard')} className="h-12 rounded-xl">
             Back to dashboard
           </Button>
         </div>
@@ -209,7 +209,7 @@ const CreateAppointment = () => {
                 onClick={() => toggleDay(i)}
                 className={cn(
                   'h-10 w-10 rounded-full text-xs font-medium transition-colors',
-                  selectedDays.includes(i) ? 'bg-foreground text-background' : 'border hover:bg-accent'
+                  selectedDays.includes(i) ? 'bg-[#020c1a] text-white' : 'border hover:bg-accent'
                 )}
               >
                 {d}
@@ -247,7 +247,7 @@ const CreateAppointment = () => {
                 }}
                 className={cn(
                   'px-4 py-2 rounded-full text-sm font-medium transition-colors',
-                  !isCustomDuration && duration === d ? 'bg-foreground text-background' : 'border hover:bg-accent'
+                  !isCustomDuration && duration === d ? 'bg-[#020c1a] text-white' : 'border hover:bg-accent'
                 )}
               >
                 {d === 60 ? '1 hr' : `${d} Mins`}
@@ -257,7 +257,7 @@ const CreateAppointment = () => {
               onClick={() => setIsCustomDuration(true)}
               className={cn(
                 'px-4 py-2 rounded-full text-sm font-medium transition-colors',
-                isCustomDuration ? 'bg-foreground text-background' : 'border hover:bg-accent'
+                isCustomDuration ? 'bg-[#020c1a] text-white' : 'border hover:bg-accent'
               )}
             >
               Custom
@@ -286,7 +286,7 @@ const CreateAppointment = () => {
                 onClick={() => setMaxBookingsPerSlot(opt)}
                 className={cn(
                   'px-4 py-2 rounded-full text-sm font-medium transition-colors',
-                  maxBookingsPerSlot === opt ? 'bg-foreground text-background' : 'border hover:bg-accent'
+                  maxBookingsPerSlot === opt ? 'bg-[#020c1a] text-white' : 'border hover:bg-accent'
                 )}
               >
                 {opt}
@@ -388,20 +388,20 @@ const CreateAppointment = () => {
 
             <div className="flex gap-3">
               {step === 0 ? (
-                <Button variant="outline" onClick={() => navigate('/dashboard')} className="h-12 rounded-full px-8">
+                <Button variant="outline" onClick={() => navigate('/dashboard')} className="h-12 rounded-xl px-8">
                   Cancel
                 </Button>
               ) : (
-                <Button variant="outline" onClick={goBack} className="h-12 rounded-full px-8">
+                <Button variant="outline" onClick={goBack} className="h-12 rounded-xl px-8">
                   Back
                 </Button>
               )}
               {step === 0 ? (
-                <Button onClick={goNext} className="h-12 rounded-full gap-2" disabled={!name || !price}>
+                <Button onClick={goNext} className="h-12 rounded-xl gap-2" disabled={!name || !price}>
                   Next <ArrowRight className="h-4 w-4" />
                 </Button>
               ) : (
-                <Button onClick={handleSave} className="h-12 rounded-full gap-2" disabled={!name || !price || selectedDays.length === 0}>
+                <Button onClick={handleSave} className="h-12 rounded-xl gap-2" disabled={!name || !price || selectedDays.length === 0}>
                   {isEditMode ? 'Save changes' : 'Create booking'} <ArrowRight className="h-4 w-4" />
                 </Button>
               )}
@@ -425,7 +425,7 @@ const CreateAppointment = () => {
         {step === 0 && (
           <>
             {renderStepOne()}
-            <Button onClick={goNext} className="w-full h-12 rounded-full gap-2" disabled={!name || !price}>
+            <Button onClick={goNext} className="w-full h-12 rounded-xl gap-2" disabled={!name || !price}>
               Next <ArrowRight className="h-4 w-4" />
             </Button>
           </>
@@ -435,10 +435,10 @@ const CreateAppointment = () => {
           <>
             {renderStepTwo()}
             <div className="flex gap-3">
-              <Button variant="outline" onClick={goBack} className="flex-1 h-12 rounded-full">
+              <Button variant="outline" onClick={goBack} className="flex-1 h-12 rounded-xl">
                 Reset
               </Button>
-              <Button onClick={goNext} className="flex-1 h-12 rounded-full gap-2">
+              <Button onClick={goNext} className="flex-1 h-12 rounded-xl gap-2">
                 Next <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
@@ -453,10 +453,10 @@ const CreateAppointment = () => {
             </div>
             {renderMobileReviewCard()}
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => navigate('/dashboard')} className="flex-1 h-12 rounded-full">
+              <Button variant="outline" onClick={() => navigate('/dashboard')} className="flex-1 h-12 rounded-xl">
                 Edit Details
               </Button>
-              <Button onClick={handleSave} className="flex-1 h-12 rounded-full gap-2" disabled={selectedDays.length === 0}>
+              <Button onClick={handleSave} className="flex-1 h-12 rounded-xl gap-2" disabled={selectedDays.length === 0}>
                 {isEditMode ? 'Save changes' : 'Create booking'} <ArrowRight className="h-4 w-4" />
               </Button>
             </div>

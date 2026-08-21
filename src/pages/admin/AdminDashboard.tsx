@@ -156,7 +156,7 @@ const AdminDashboard = () => {
     <div className="min-h-screen flex flex-col px-6 py-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between gap-3 mb-6">
         <BackButton onClick={() => navigate('/dashboard')} />
-        <Button variant="outline" className="h-10 rounded-full gap-2" onClick={handleLogout}>
+        <Button variant="outline" className="h-10 rounded-xl gap-2" onClick={handleLogout}>
           <LogOut className="h-4 w-4" />
           Log out
         </Button>
@@ -168,7 +168,7 @@ const AdminDashboard = () => {
           Review vendors, documents, bookings, services, and earnings ({pendingCount} pending)
         </p>
         <div className="mt-4">
-          <Button variant="outline" className="h-10 rounded-full" onClick={() => navigate('/admin/create')}>
+          <Button variant="outline" className="h-10 rounded-xl" onClick={() => navigate('/admin/create')}>
             Create admin account
           </Button>
         </div>

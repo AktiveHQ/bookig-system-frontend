@@ -187,7 +187,7 @@ const CreateAdminAccount = () => {
               />
               <p className="text-xs text-muted-foreground">At least 8 characters.</p>
             </div>
-            <Button type="submit" className="w-full h-12 rounded-full" disabled={creating}>
+            <Button type="submit" className="w-full h-12 rounded-xl" disabled={creating}>
               {creating ? 'Creating...' : 'Create admin'}
             </Button>
           </form>
@@ -205,7 +205,7 @@ const CreateAdminAccount = () => {
                 After the first admin exists, bootstrap is disabled.
               </p>
             </div>
-            <Button type="submit" variant="outline" className="w-full h-12 rounded-full" disabled={bootstrapping}>
+            <Button type="submit" variant="outline" className="w-full h-12 rounded-xl" disabled={bootstrapping}>
               {bootstrapping ? 'Bootstrapping...' : 'Bootstrap first admin'}
             </Button>
           </form>

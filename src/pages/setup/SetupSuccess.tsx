@@ -12,7 +12,7 @@ const SetupSuccess = () => {
       <p className="text-muted-foreground text-sm mb-8">
         Your business is ready. You can start creating services and accepting bookings.
       </p>
-      <Button onClick={() => navigate('/dashboard')} className="w-full h-12 rounded-full gap-2">
+      <Button onClick={() => navigate('/dashboard')} className="w-full h-12 rounded-xl gap-2">
         Go to dashboard <ArrowRight className="h-4 w-4" />
       </Button>
     </div>

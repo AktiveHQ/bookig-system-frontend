@@ -143,14 +143,14 @@ const AppointmentDetail = () => {
       </div>
 
       <div className="flex gap-3 mt-6 flex-wrap">
-        <Button variant="outline" className="gap-2 rounded-full" onClick={handleEdit}>
+        <Button variant="outline" className="gap-2 rounded-xl" onClick={handleEdit}>
           <Pencil className="h-4 w-4" /> Edit
         </Button>
-        <Button variant="outline" className="gap-2 rounded-full" onClick={handlePause}>
+        <Button variant="outline" className="gap-2 rounded-xl" onClick={handlePause}>
           {appointment.paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
           {appointment.paused ? 'Resume' : 'Pause'}
         </Button>
-        <Button variant="destructive" className="gap-2 rounded-full" onClick={handleDelete} disabled={hasFutureBookings}>
+        <Button variant="destructive" className="gap-2 rounded-xl" onClick={handleDelete} disabled={hasFutureBookings}>
           <Trash2 className="h-4 w-4" /> Delete
         </Button>
       </div>

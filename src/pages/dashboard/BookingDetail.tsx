@@ -92,7 +92,7 @@ const BookingDetail = () => {
   if (error || !booking) {
     return (
       <div className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
-        <Button variant="outline" className="h-10 rounded-full gap-2" onClick={() => navigate('/dashboard/bookings')}>
+        <Button variant="outline" className="h-10 rounded-xl gap-2" onClick={() => navigate('/dashboard/bookings')}>
           <ArrowLeft className="h-4 w-4" />
           Back to bookings
         </Button>
@@ -108,7 +108,7 @@ const BookingDetail = () => {
   return (
     <div className="min-h-screen px-4 py-5 sm:px-6 lg:px-8">
       <main className="mx-auto w-full max-w-3xl">
-        <Button variant="outline" className="h-10 rounded-full gap-2" onClick={() => navigate('/dashboard/bookings')}>
+        <Button variant="outline" className="h-10 rounded-xl gap-2" onClick={() => navigate('/dashboard/bookings')}>
           <ArrowLeft className="h-4 w-4" />
           Back to bookings
         </Button>

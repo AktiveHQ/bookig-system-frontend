@@ -128,14 +128,14 @@ export const AppLayout = ({ children, showSidebar = true }: AppLayoutProps) => {
           })}
         </nav>
 
-        <Button className="mt-6 h-11 rounded-full gap-2" onClick={() => setCreateOpen(true)}>
+        <Button className="mt-6 h-11 rounded-xl gap-2" onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" />
           Create
         </Button>
 
         <Button
           variant="outline"
-          className="mt-auto h-11 justify-start rounded-full gap-2"
+          className="mt-auto h-11 justify-start rounded-xl gap-2"
           onClick={handleLogout}
         >
           <LogOut className="h-4 w-4" />
@@ -164,7 +164,7 @@ export const AppLayout = ({ children, showSidebar = true }: AppLayoutProps) => {
             />
           ))}
           <button
-            className="mx-auto -mt-7 flex h-14 w-14 items-center justify-center rounded-full border-4 border-background bg-primary text-primary-foreground shadow-lg shadow-primary/30"
+            className="mx-auto -mt-7 flex h-14 w-14 items-center justify-center rounded-full border-4 border-background bg-[#6B4EFF] text-white shadow-lg shadow-[#6B4EFF]/30"
             onClick={() => setCreateOpen(true)}
             aria-label="Create"
           >
@@ -201,7 +201,7 @@ const BottomNavItem = ({
   <button
     className={cn(
       'flex min-w-0 flex-col items-center gap-1 px-1 text-[11px] text-muted-foreground',
-      active && 'font-medium text-primary',
+      active && 'font-medium text-[#6B4EFF]',
     )}
     onClick={onClick}
   >

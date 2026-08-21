@@ -137,7 +137,7 @@ const Signup = () => {
               />
             </div>
 
-            <Button type="submit" className="w-full h-12 rounded-2xl border-0 bg-[#020c1a] gap-2 hover:bg-[#06162b]" disabled={loading}>
+            <Button type="submit" className="w-full h-12 rounded-xl border-0 bg-[#020c1a] gap-2 hover:bg-[#06162b]" disabled={loading}>
               {loading ? 'Creating account...' : 'Create account'}
               <ArrowRight className="h-4 w-4" />
             </Button>
@@ -146,7 +146,7 @@ const Signup = () => {
           <Button
             type="button"
             variant="outline"
-            className="w-full h-12 rounded-2xl border-[#020c1a] bg-white justify-center gap-3 text-[#020c1a] hover:bg-[#020c1a]/5 hover:text-[#020c1a]"
+            className="w-full h-12 rounded-xl border-[#020c1a] bg-white justify-center gap-3 text-[#020c1a] hover:bg-[#020c1a]/5 hover:text-[#020c1a]"
             disabled={loading}
             onClick={handleGoogleSignup}
               
