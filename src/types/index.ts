@@ -59,6 +59,13 @@ export interface Booking {
   time: string; // "10:00"
   status: 'pending_payment' | 'confirmed' | 'cancelled' | 'expired' | 'completed';
   attendanceStatus?: 'NOT_MARKED' | 'SERVICED' | 'NO_SHOW';
+  payment?: {
+    amountPaid: number;
+    platformFeeAmount: number;
+    vendorNetAmount: number;
+    currency: string;
+    feePayer: 'customer' | 'business';
+  };
   createdAt: string;
 }
 

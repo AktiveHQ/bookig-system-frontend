@@ -36,7 +36,11 @@ type EarningStatus = 'Pending' | 'Settled';
 type Earning = Booking & {
   appointment?: Appointment;
   serviceName: string;
+  serviceAmount: number;
   amount: number;
+  customerPaidAmount: number;
+  platformFeeAmount: number;
+  feePayer: 'customer' | 'business';
   expectedPayoutDate: Date;
   settlementStatus: EarningStatus;
 };
@@ -92,7 +96,11 @@ const Transactions = () => {
             ...booking,
             appointment,
             serviceName: appointment?.name || booking.appointmentName || 'Service',
-            amount: Number(appointment?.price ?? 0),
+            serviceAmount: Number(appointment?.price ?? 0),
+            amount: Number(booking.payment?.vendorNetAmount ?? appointment?.price ?? 0),
+            customerPaidAmount: Number(booking.payment?.amountPaid ?? appointment?.price ?? 0),
+            platformFeeAmount: Number(booking.payment?.platformFeeAmount ?? 0),
+            feePayer: booking.payment?.feePayer ?? 'customer',
             expectedPayoutDate,
             settlementStatus:
               expectedPayoutDate > startOfDay(new Date()) ? 'Pending' : 'Settled',
@@ -274,6 +282,13 @@ const EarningRow = ({ earning, onClick }: { earning: Earning; onClick: () => voi
       </span>
       <span className="shrink-0 text-right">
         <span className="block text-[15px] font-semibold">{formatCurrency(earning.amount)}</span>
+        {earning.platformFeeAmount > 0 && (
+          <span className="mt-0.5 block text-[11px] font-medium text-muted-foreground">
+            {earning.feePayer === 'business'
+              ? `Net after ${formatCurrency(earning.platformFeeAmount)} fee`
+              : 'Fee paid by customer'}
+          </span>
+        )}
         <span
           className={cn(
             'mt-0.5 block text-xs font-medium',
@@ -370,6 +385,10 @@ const EarningDetails = ({
                 ['Customer', earning.clientName || 'Customer'],
                 ['Booking', `${format(parseISO(earning.date), 'd MMM')} - ${formatTime(earning.time)}`],
                 ['Payment', 'Successful'],
+                ['Customer paid', formatCurrency(earning.customerPaidAmount)],
+                ['Service amount', formatCurrency(earning.serviceAmount)],
+                ['Service fee 5%', earning.platformFeeAmount > 0 ? `-${formatCurrency(earning.platformFeeAmount)}` : formatCurrency(0)],
+                ['Net earnings', formatCurrency(earning.amount)],
                 ['Payout', earning.settlementStatus === 'Settled' ? 'Settled to bank' : 'Pending settlement'],
                 ['Expected payout', format(earning.expectedPayoutDate, 'EEEE, d MMMM')],
                 ['Payment reference', `AKT-${earning.id}`],

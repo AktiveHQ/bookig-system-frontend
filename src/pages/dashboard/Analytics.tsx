@@ -354,7 +354,11 @@ const getBookingEarnings = (
 ) =>
   bookings
     .filter(booking => EARNING_STATUSES.includes(booking.status))
-    .reduce((sum, booking) => sum + Number(appointmentsById.get(booking.appointmentId)?.price ?? 0), 0);
+    .reduce(
+      (sum, booking) =>
+        sum + Number(booking.payment?.vendorNetAmount ?? appointmentsById.get(booking.appointmentId)?.price ?? 0),
+      0,
+    );
 
 const getComparisonLabel = (period: Period) => {
   if (period === 'daily') return 'vs yesterday';

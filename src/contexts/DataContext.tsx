@@ -86,6 +86,23 @@ const toAppointment = (raw: any, fallbackBusinessId = ''): Appointment => ({
       : String(raw?.status ?? '').toUpperCase() === 'INACTIVE' || raw?.isActive === false,
 });
 
+const toPaymentBreakdown = (raw: any, serviceAmount: number): Booking['payment'] | undefined => {
+  const payment = raw?.payment;
+  if (!payment) return undefined;
+
+  const amountPaidMajor = Number(payment.amountPaid ?? 0) / 100;
+  const platformFeeMajor = Number(payment.platformFeeAmount ?? 0) / 100;
+  const feePayer = amountPaidMajor > serviceAmount ? 'customer' : 'business';
+
+  return {
+    amountPaid: amountPaidMajor,
+    platformFeeAmount: platformFeeMajor,
+    vendorNetAmount: feePayer === 'business' ? Math.max(serviceAmount - platformFeeMajor, 0) : serviceAmount,
+    currency: String(payment.currency ?? raw?.service?.currency ?? 'NGN'),
+    feePayer,
+  };
+};
+
 const toBooking = (raw: any, appointmentId = '', businessSlug = ''): Booking => ({
   id: String(raw?.id ?? raw?.bookingId ?? crypto.randomUUID()),
   appointmentId: String(raw?.serviceId ?? raw?.appointmentId ?? appointmentId),
@@ -120,6 +137,7 @@ const toBooking = (raw: any, appointmentId = '', businessSlug = ''): Booking => 
     return 'confirmed';
   })(),
   attendanceStatus: raw?.attendanceStatus ? String(raw.attendanceStatus) as Booking['attendanceStatus'] : undefined,
+  payment: toPaymentBreakdown(raw, Number(raw?.service?.priceAmount ?? raw?.appointmentPrice ?? 0)),
   createdAt: String(raw?.createdAt ?? raw?.startAt ?? new Date().toISOString()),
 });
 
