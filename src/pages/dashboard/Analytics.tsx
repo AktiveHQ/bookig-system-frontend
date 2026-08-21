@@ -102,7 +102,7 @@ const Analytics = () => {
           <h1 className="text-2xl font-bold">Analytics</h1>
         </header>
 
-        <div className="grid grid-cols-2 rounded-xl border bg-card p-1">
+        <div className="grid h-11 grid-cols-2 rounded-full border bg-card p-1">
           <SegmentButton active={metric === 'earnings'} onClick={() => setMetric('earnings')}>
             Earnings
           </SegmentButton>
@@ -117,7 +117,7 @@ const Analytics = () => {
               key={item}
               className={cn(
                 'h-9 shrink-0 rounded-full border px-4 text-sm capitalize',
-                period === item ? 'border-primary bg-primary text-primary-foreground' : 'bg-card text-muted-foreground',
+                period === item ? 'border-[#020c1a] bg-[#020c1a] text-white' : 'bg-card text-muted-foreground',
               )}
               onClick={() => setPeriod(item)}
             >
@@ -201,8 +201,8 @@ const SegmentButton = ({
 }) => (
   <button
     className={cn(
-      'h-10 rounded-lg text-sm font-semibold transition-colors',
-      active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground',
+      'rounded-full text-sm font-semibold transition-colors',
+      active ? 'bg-[#020c1a] text-white shadow-sm' : 'text-muted-foreground',
     )}
     onClick={onClick}
   >

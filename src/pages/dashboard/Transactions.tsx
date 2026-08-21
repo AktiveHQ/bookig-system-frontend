@@ -242,7 +242,7 @@ const SegmentedToggle = ({
         key={item}
         className={cn(
           'rounded-full text-sm font-semibold capitalize transition-colors',
-          value === item && 'bg-foreground text-background',
+          value === item && 'bg-[#020c1a] text-white',
         )}
         onClick={() => onChange(item)}
       >
