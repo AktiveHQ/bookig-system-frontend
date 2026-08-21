@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,21 +72,15 @@ const DAYS = [
   { label: 'S', value: 0 },
 ];
 const DURATION_OPTIONS = [30, 45, 60, 90, 120];
+const MAX_BOOKINGS_PER_SLOT_OPTIONS = [1, 2, 3, 4, 5];
 
-const inputClassName = 'h-12 rounded-xl';
-const primaryButtonClassName = 'h-12 rounded-2xl border-0 bg-[#020c1a] hover:bg-[#06162b]';
+const inputClassName = 'h-10 rounded-lg';
+const primaryButtonClassName = 'h-11 rounded-xl border-0 bg-[#020c1a] hover:bg-[#06162b]';
 
 const RequiredLabel = ({ children }: { children: string }) => (
   <label className="text-sm font-medium">
     {children} <span className="text-destructive">*</span>
   </label>
-);
-
-const HelperCard = ({ title, children }: { title: string; children: ReactNode }) => (
-  <div className="rounded-2xl border bg-accent/45 p-4">
-    <p className="text-sm font-bold">{title}</p>
-    <p className="mt-1 text-sm leading-6 text-muted-foreground">{children}</p>
-  </div>
 );
 
 const getResponseErrorMessage = async (response: Response, fallback: string) => {
@@ -112,6 +106,7 @@ const BusinessSetup = () => {
   const { user } = useAuth();
   const { business, setBusiness, setHasSetupComplete, addAppointment } = useData();
   const [step, setStep] = useState(0);
+  const [serviceStep, setServiceStep] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
   const [paymentsReady, setPaymentsReady] = useState(false);
 
@@ -132,11 +127,13 @@ const BusinessSetup = () => {
   const [saving, setSaving] = useState(false);
 
   const [serviceName, setServiceName] = useState('');
+  const [serviceDescription, setServiceDescription] = useState('');
   const [servicePrice, setServicePrice] = useState('');
   const [duration, setDuration] = useState(45);
   const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5, 6]);
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('18:00');
+  const [maxBookingsPerSlot, setMaxBookingsPerSlot] = useState(1);
 
   const bookingSlug = useMemo(() => business?.slug || makeSlug(name), [business?.slug, name]);
   const bookingLink = `${PUBLIC_BASE}/booking/${bookingSlug}`;
@@ -161,11 +158,13 @@ const BusinessSetup = () => {
       setBankCode(String(draft.bankCode ?? ''));
       setAccountNumber(String(draft.accountNumber ?? ''));
       setServiceName(String(draft.serviceName ?? ''));
+      setServiceDescription(String(draft.serviceDescription ?? ''));
       setServicePrice(String(draft.servicePrice ?? ''));
       setDuration(Number(draft.duration ?? 45));
       setSelectedDays(Array.isArray(draft.selectedDays) ? draft.selectedDays.map(Number) : [1, 2, 3, 4, 5, 6]);
       setStartTime(String(draft.startTime ?? '09:00'));
       setEndTime(String(draft.endTime ?? '18:00'));
+      setMaxBookingsPerSlot(Number(draft.maxBookingsPerSlot ?? 1));
       toast({
         title: 'Draft restored',
         description: 'Your saved setup progress has been loaded.',
@@ -209,11 +208,13 @@ const BusinessSetup = () => {
       bankCode,
       accountNumber,
       serviceName,
+      serviceDescription,
       servicePrice,
       duration,
       selectedDays,
       startTime,
       endTime,
+      maxBookingsPerSlot,
     };
 
     try {
@@ -297,6 +298,10 @@ const BusinessSetup = () => {
   };
 
   const goBack = () => {
+    if (step === 3 && serviceStep > 0) {
+      setServiceStep(s => s - 1);
+      return;
+    }
     if (step === 0) return;
     setTransitioning(true);
     window.setTimeout(() => {
@@ -358,14 +363,14 @@ const BusinessSetup = () => {
       id: crypto.randomUUID(),
       businessId: business?.id || '',
       name: serviceName,
-      description: '',
+      description: serviceDescription,
       price,
       currency: 'NGN',
       availableDays: selectedDays,
       startTime,
       endTime,
       duration,
-      maxBookingsPerSlot: 1,
+      maxBookingsPerSlot,
       createdAt: new Date().toISOString(),
     });
     setHasSetupComplete(true);
@@ -396,29 +401,29 @@ const BusinessSetup = () => {
   };
 
   const renderBusinessStep = () => (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Your Business</h1>
+        <h1 className="text-xl font-bold">Your Business</h1>
         <p className="mt-1 text-sm text-muted-foreground">This is what customers will see when they book with you.</p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="space-y-1.5">
           <RequiredLabel>Business name</RequiredLabel>
           <Input value={name} onChange={e => setName(e.target.value)} className={inputClassName} required />
         </div>
         <div className="space-y-1.5">
           <RequiredLabel>Business description</RequiredLabel>
-          <Textarea value={description} onChange={e => setDescription(e.target.value)} className="min-h-[92px] rounded-xl" required />
+          <Textarea value={description} onChange={e => setDescription(e.target.value)} className="min-h-[80px] rounded-lg" required />
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Business photo/logo - optional</label>
           <div
-            className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-3 transition-colors hover:bg-accent/50"
+            className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-3 transition-colors hover:bg-accent/50"
             onClick={() => fileInputRef.current?.click()}
           >
             {bookingImage ? (
-              <img src={bookingImage} alt="Business preview" className="h-20 w-20 rounded-xl border object-cover" />
+              <img src={bookingImage} alt="Business preview" className="h-20 w-20 rounded-lg border object-cover" />
             ) : (
               <Upload className="h-6 w-6 text-muted-foreground" />
             )}
@@ -430,10 +435,6 @@ const BusinessSetup = () => {
         </div>
       </div>
 
-      <HelperCard title="Make it yours">
-        Your business details help customers recognize and understand who they're booking with.
-      </HelperCard>
-
       <Button onClick={goNext} className={`w-full gap-2 ${primaryButtonClassName}`} disabled={!name.trim() || !description.trim()}>
         Continue <ArrowRight className="h-4 w-4" />
       </Button>
@@ -441,13 +442,13 @@ const BusinessSetup = () => {
   );
 
   const renderLocationStep = () => (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Where can customers find you?</h1>
+        <h1 className="text-xl font-bold">Where can customers find you?</h1>
         <p className="mt-1 text-sm text-muted-foreground">Add the location customers should see when booking.</p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="space-y-1.5">
           <RequiredLabel>Country</RequiredLabel>
           <Input value={country} disabled className={inputClassName} required />
@@ -466,10 +467,6 @@ const BusinessSetup = () => {
         </div>
       </div>
 
-      <HelperCard title="Help customers find you easily">
-        Your location appears with your booking details so customers know where they're going.
-      </HelperCard>
-
       <Button onClick={goNext} className={`w-full gap-2 ${primaryButtonClassName}`} disabled={!state || !address.trim()}>
         Continue <ArrowRight className="h-4 w-4" />
       </Button>
@@ -477,12 +474,12 @@ const BusinessSetup = () => {
   );
 
   const renderPaymentsStep = () => (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Where should we send your earnings?</h1>
+        <h1 className="text-xl font-bold">Where should we send your earnings?</h1>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="space-y-1.5">
           <RequiredLabel>Bank</RequiredLabel>
           <BankSelect
@@ -519,7 +516,7 @@ const BusinessSetup = () => {
           <p className="text-sm font-bold">Who pays the 5% service fee?</p>
           <button
             type="button"
-            className={`w-full rounded-2xl border p-4 text-left ${feeHandling === 'customer' ? 'border-[#020c1a] bg-[#020c1a] text-white' : 'bg-card'}`}
+            className={`w-full rounded-xl border p-3 text-left ${feeHandling === 'customer' ? 'border-[#020c1a] bg-[#020c1a] text-white' : 'bg-card'}`}
             onClick={() => setFeeHandling('customer')}
           >
             <span className="block text-sm font-semibold">Customer pays fee</span>
@@ -529,7 +526,7 @@ const BusinessSetup = () => {
           </button>
           <button
             type="button"
-            className={`w-full rounded-2xl border p-4 text-left ${feeHandling === 'business' ? 'border-[#020c1a] bg-[#020c1a] text-white' : 'bg-card'}`}
+            className={`w-full rounded-xl border p-3 text-left ${feeHandling === 'business' ? 'border-[#020c1a] bg-[#020c1a] text-white' : 'bg-card'}`}
             onClick={() => setFeeHandling('business')}
           >
             <span className="block text-sm font-semibold">I pay fee</span>
@@ -539,11 +536,6 @@ const BusinessSetup = () => {
           </button>
         </div>
       )}
-
-      <HelperCard title="Get paid automatically">
-        Track what you've earned and what is still pending. Your earnings are currently settled to your bank account on the next working day.
-        You'll also be able to see your earnings, payout history and pending settlements from your dashboard.
-      </HelperCard>
 
       <Button
         onClick={handleSavePayments}
@@ -564,32 +556,30 @@ const BusinessSetup = () => {
     </div>
   );
 
-  const renderServiceStep = () => (
-    <div className="space-y-5">
-      {paymentsReady && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center">
-          <p className="flex items-center justify-center gap-2 text-sm font-bold text-emerald-700">
-            <Check className="h-4 w-4" /> Payments ready
-          </p>
-          <p className="mt-3 text-xl font-black leading-tight">You're 80% ready to receive bookings.</p>
-          <p className="mt-2 text-sm text-muted-foreground">Now let's create something customers can book.</p>
-        </div>
-      )}
-
+  const renderServiceDetails = () => (
+    <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">What can customers book?</h1>
+        <h1 className="text-xl font-bold">What can customers book?</h1>
         <p className="mt-1 text-sm text-muted-foreground">Create your first service. You can add more anytime.</p>
       </div>
 
-      <div className="space-y-4">
-        <p className="text-sm font-bold">Service</p>
+      <div className="space-y-3">
         <div className="space-y-1.5">
           <RequiredLabel>Service name</RequiredLabel>
           <Input value={serviceName} onChange={e => setServiceName(e.target.value)} className={inputClassName} />
         </div>
         <div className="space-y-1.5">
+          <label className="text-sm font-medium">Description (optional)</label>
+          <Textarea
+            value={serviceDescription}
+            onChange={e => setServiceDescription(e.target.value)}
+            className="min-h-[80px] rounded-lg"
+          />
+        </div>
+        <div className="space-y-1.5">
           <RequiredLabel>Price</RequiredLabel>
-          <div className="flex h-12 items-center rounded-xl border bg-background px-3">
+          <p className="text-xs text-muted-foreground">This is the amount clients will pay per session</p>
+          <div className="flex h-10 items-center rounded-lg border bg-background px-3">
             <span className="mr-2 text-sm font-semibold">NGN</span>
             <input
               value={servicePrice}
@@ -599,60 +589,115 @@ const BusinessSetup = () => {
             />
           </div>
         </div>
-        <div className="space-y-1.5">
-          <RequiredLabel>Duration</RequiredLabel>
-          <select value={duration} onChange={e => setDuration(Number(e.target.value))} className={`${inputClassName} w-full border bg-background px-3 text-sm`}>
-            {DURATION_OPTIONS.map(item => (
-              <option key={item} value={item}>{item} minutes</option>
-            ))}
-          </select>
-        </div>
       </div>
-
-      <div className="space-y-4">
-        <p className="text-sm font-bold">Availability</p>
-        <p className="text-sm text-muted-foreground">When are you available?</p>
-        <div className="grid grid-cols-7 gap-2">
-          {DAYS.map(day => (
-            <button
-              key={`${day.label}-${day.value}`}
-              type="button"
-              onClick={() => toggleDay(day.value)}
-              className={`flex h-12 flex-col items-center justify-center rounded-full text-xs font-bold ${
-                selectedDays.includes(day.value) ? 'bg-[#020c1a] text-white' : 'border bg-card text-muted-foreground'
-              }`}
-            >
-              <span>{day.label}</span>
-              <span className="text-lg leading-none">●</span>
-            </button>
-          ))}
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <RequiredLabel>From</RequiredLabel>
-            <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className={inputClassName} />
-          </div>
-          <div className="space-y-1.5">
-            <RequiredLabel>To</RequiredLabel>
-            <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className={inputClassName} />
-          </div>
-        </div>
-      </div>
-
-      <HelperCard title="No more booking back-and-forth">
-        Customers only see available times. Once a slot is booked, your availability updates automatically.
-        Your services also power your earnings and booking reports, helping you see what's performing best.
-      </HelperCard>
 
       <Button
-        onClick={handleCreateService}
+        onClick={() => setServiceStep(1)}
         className={`w-full gap-2 ${primaryButtonClassName}`}
-        disabled={!serviceName.trim() || !Number(servicePrice.replace(/,/g, '')) || selectedDays.length === 0}
+        disabled={!serviceName.trim() || !Number(servicePrice.replace(/,/g, ''))}
       >
-        Create Service <ArrowRight className="h-4 w-4" />
+        Next <ArrowRight className="h-4 w-4" />
       </Button>
     </div>
   );
+
+  const renderServiceAvailability = () => (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-xl font-bold">Availability</h1>
+        <p className="mt-1 text-sm text-muted-foreground">When can clients book this service?</p>
+      </div>
+
+      <div className="space-y-5">
+        <div>
+          <p className="mb-3 text-sm font-semibold">Available days</p>
+          <div className="grid grid-cols-7 gap-2">
+            {DAYS.map(day => {
+              const selected = selectedDays.includes(day.value);
+              return (
+                <button
+                  key={`${day.label}-${day.value}`}
+                  type="button"
+                  onClick={() => toggleDay(day.value)}
+                  className={`flex h-10 flex-col items-center justify-center rounded-xl text-xs font-bold ${
+                    selected ? 'bg-[#020c1a] text-white' : 'border bg-card text-muted-foreground'
+                  }`}
+                >
+                  <span>{day.label}</span>
+                  <span className={`mt-1 h-1.5 w-1.5 rounded-full ${selected ? 'bg-white' : 'bg-muted-foreground'}`} />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-3 text-sm font-semibold">Working hours</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <RequiredLabel>From</RequiredLabel>
+              <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className={inputClassName} />
+            </div>
+            <div className="space-y-1.5">
+              <RequiredLabel>To</RequiredLabel>
+              <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className={inputClassName} />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2 text-sm font-semibold">Service duration</p>
+          <div className="flex flex-wrap gap-2">
+            {DURATION_OPTIONS.map(item => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setDuration(item)}
+                className={`rounded-xl border px-4 py-2 text-sm font-medium ${
+                  duration === item ? 'border-[#020c1a] bg-[#020c1a] text-white' : 'bg-card'
+                }`}
+              >
+                {item === 60 ? '1 hr' : `${item} mins`}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2 text-sm font-semibold">Bookings per time slot</p>
+          <div className="flex flex-wrap gap-2">
+            {MAX_BOOKINGS_PER_SLOT_OPTIONS.map(item => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setMaxBookingsPerSlot(item)}
+                className={`rounded-xl border px-4 py-2 text-sm font-medium ${
+                  maxBookingsPerSlot === item ? 'border-[#020c1a] bg-[#020c1a] text-white' : 'bg-card'
+                }`}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Button type="button" variant="outline" onClick={() => setServiceStep(0)} className="h-11 rounded-xl border-[#020c1a] text-[#020c1a]">
+          Back
+        </Button>
+        <Button
+          onClick={handleCreateService}
+          className={`gap-2 ${primaryButtonClassName}`}
+          disabled={selectedDays.length === 0}
+        >
+          Create Service <ArrowRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+
+  const renderServiceStep = () => (serviceStep === 0 ? renderServiceDetails() : renderServiceAvailability());
 
   const renderLiveStep = () => {
     const serviceAmount = Number(servicePrice.replace(/,/g, '')) || 0;
@@ -669,8 +714,8 @@ const BusinessSetup = () => {
           </p>
         </div>
 
-        <div className="rounded-2xl border bg-card p-5 text-left shadow-sm">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-accent">
+        <div className="rounded-xl border bg-card p-5 text-left shadow-sm">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl bg-accent">
             {bookingImage ? (
               <img src={bookingImage} alt={`${name} logo`} className="h-full w-full object-cover" />
             ) : (
@@ -690,34 +735,16 @@ const BusinessSetup = () => {
 
         <div className="space-y-3 text-left">
           <p className="text-sm font-bold">Your booking link</p>
-          <p className="rounded-xl bg-muted px-3 py-3 text-sm font-semibold text-[#020c1a]">{bookingLink}</p>
+          <p className="rounded-lg bg-muted px-3 py-3 text-sm font-semibold text-[#020c1a]">{bookingLink}</p>
           <Button type="button" onClick={copyBookingLink} className={`w-full gap-2 ${primaryButtonClassName}`}>
             <Copy className="h-4 w-4" /> Copy Booking Link
           </Button>
-          <Button type="button" variant="outline" onClick={shareOnWhatsApp} className="h-12 w-full rounded-2xl border-[#020c1a] text-[#020c1a]">
+          <Button type="button" variant="outline" onClick={shareOnWhatsApp} className="h-11 w-full rounded-xl border-[#020c1a] text-[#020c1a]">
             <Share2 className="mr-2 h-4 w-4" /> Share on WhatsApp
           </Button>
-          <Button type="button" variant="ghost" onClick={() => window.open(bookingLink, '_blank', 'noopener,noreferrer')} className="h-12 w-full rounded-2xl">
+          <Button type="button" variant="ghost" onClick={() => window.open(bookingLink, '_blank', 'noopener,noreferrer')} className="h-11 w-full rounded-xl">
             <ExternalLink className="mr-2 h-4 w-4" /> View Booking Page
           </Button>
-        </div>
-
-        <div className="rounded-2xl border bg-accent/45 p-4 text-left">
-          <p className="text-sm font-bold">We'll take it from here.</p>
-          <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-            {[
-              'Track your bookings',
-              'Monitor earnings and payouts',
-              'Automatically remind customers',
-              'See your business performance',
-              'Get insights as your business grows',
-            ].map(item => (
-              <p key={item} className="flex items-start gap-2">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                <span>{item}</span>
-              </p>
-            ))}
-          </div>
         </div>
 
         <Button onClick={() => navigate('/dashboard')} className={`w-full gap-2 ${primaryButtonClassName}`}>
@@ -736,11 +763,16 @@ const BusinessSetup = () => {
           </div>
           <WelcomeBackNote />
           <div className="mb-4 flex justify-end">
-            <Button type="button" variant="outline" className="h-10 rounded-2xl border-[#020c1a] text-[#020c1a]" onClick={saveSetupDraft}>
+            <Button type="button" variant="outline" className="h-10 rounded-xl border-[#020c1a] text-[#020c1a]" onClick={saveSetupDraft}>
               Save and continue later
             </Button>
           </div>
           <ProgressBar currentStep={step} totalSteps={5} labels={STEP_LABELS} />
+          {step === 3 && paymentsReady && (
+            <p className="mt-3 text-center text-sm font-semibold text-emerald-700">
+              You're 80% ready to receive bookings.
+            </p>
+          )}
         </>
       )}
 
