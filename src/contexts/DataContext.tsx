@@ -100,7 +100,12 @@ const toPaymentBreakdown = (raw: any, serviceAmount: number): Booking['payment']
   };
 };
 
-const toBooking = (raw: any, appointmentId = '', businessSlug = ''): Booking => ({
+const toBooking = (
+  raw: any,
+  appointmentId = '',
+  businessSlug = '',
+  fallbackServiceAmount = 0,
+): Booking => ({
   id: String(raw?.id ?? raw?.bookingId ?? crypto.randomUUID()),
   appointmentId: String(raw?.serviceId ?? raw?.appointmentId ?? appointmentId),
   businessSlug: String(raw?.businessSlug ?? businessSlug),
@@ -134,7 +139,10 @@ const toBooking = (raw: any, appointmentId = '', businessSlug = ''): Booking => 
     return 'confirmed';
   })(),
   attendanceStatus: raw?.attendanceStatus ? String(raw.attendanceStatus) as Booking['attendanceStatus'] : undefined,
-  payment: toPaymentBreakdown(raw, Number(raw?.service?.priceAmount ?? raw?.appointmentPrice ?? 0)),
+  payment: toPaymentBreakdown(
+    raw,
+    Number(raw?.service?.priceAmount ?? raw?.appointmentPrice ?? fallbackServiceAmount),
+  ),
   createdAt: String(raw?.createdAt ?? raw?.startAt ?? new Date().toISOString()),
 });
 
@@ -305,7 +313,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             const result = await apiFetch(`/dashboard/services/${apt.id}/bookings?date=${today}`);
             const rows = Array.isArray(result) ? result : result?.items ?? [];
-            return rows.map((b: any) => toBooking(b, apt.id, mappedBusiness.slug));
+            return rows.map((b: any) => toBooking(b, apt.id, mappedBusiness.slug, apt.price));
           } catch {
             return [] as Booking[];
           }
@@ -641,7 +649,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!business?.slug) return;
       const result = await apiFetch(`/dashboard/services/${appointmentId}/bookings?date=${date}`);
       const rows = Array.isArray(result) ? result : result?.items ?? [];
-      const mapped = rows.map((b: any) => toBooking(b, appointmentId, business.slug));
+      const appointment = appointments.find(row => row.id === appointmentId);
+      const mapped = rows.map((b: any) => toBooking(b, appointmentId, business.slug, appointment?.price ?? 0));
 
       setBookings(prev => {
         const next = new Map<string, Booking>();
@@ -650,7 +659,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return Array.from(next.values());
       });
     },
-    [business?.slug]
+    [appointments, business?.slug]
   );
 
   const fetchBookingHistory = useCallback(

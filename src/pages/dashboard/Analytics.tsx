@@ -18,6 +18,7 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { useData } from '@/contexts/DataContext';
 import { cn } from '@/lib/utils';
 import type { Appointment, Booking } from '@/types';
+import { formatCurrency, getPaymentSummary } from '@/lib/finance';
 
 const EARNING_STATUSES = ['confirmed', 'completed'];
 const ACTIVE_STATUSES = ['pending_payment', 'confirmed', 'completed'];
@@ -28,9 +29,10 @@ type Metric = 'earnings' | 'appointments';
 type ChartRow = { label: string; earnings: number; appointments: number };
 
 const Analytics = () => {
-  const { appointments, bookings } = useData();
+  const { appointments, bookings, business } = useData();
   const [metric, setMetric] = useState<Metric>('earnings');
   const [period, setPeriod] = useState<Period>('weekly');
+  const feeHandling = business?.feeHandling || 'customer';
 
   const appointmentsById = useMemo(
     () => new Map(appointments.map(appointment => [appointment.id, appointment])),
@@ -43,8 +45,8 @@ const Analytics = () => {
   );
 
   const rows = useMemo(
-    () => buildChartRows(period, activeBookings, appointments, appointmentsById),
-    [activeBookings, appointments, appointmentsById, period],
+    () => buildChartRows(period, activeBookings, appointments, appointmentsById, feeHandling),
+    [activeBookings, appointments, appointmentsById, feeHandling, period],
   );
 
   const currentPeriodBookings = useMemo(
@@ -57,8 +59,10 @@ const Analytics = () => {
     [activeBookings, period],
   );
 
-  const currentEarnings = getBookingEarnings(currentPeriodBookings, appointmentsById);
-  const previousEarnings = getBookingEarnings(previousPeriodBookings, appointmentsById);
+  const currentEarnings = getBookingEarnings(currentPeriodBookings, appointmentsById, feeHandling);
+  const previousEarnings = getBookingEarnings(previousPeriodBookings, appointmentsById, feeHandling);
+  const currentServiceSales = getBookingServiceSales(currentPeriodBookings, appointmentsById, feeHandling);
+  const currentFees = getBookingServiceCharges(currentPeriodBookings, appointmentsById, feeHandling);
   const currentAppointments = currentPeriodBookings.length;
   const previousAppointments = previousPeriodBookings.length;
 
@@ -78,7 +82,7 @@ const Analytics = () => {
           const serviceBookings = currentPeriodBookings.filter(
             booking => booking.appointmentId === appointment.id,
           );
-          const earning = getBookingEarnings(serviceBookings, appointmentsById);
+          const earning = getBookingEarnings(serviceBookings, appointmentsById, feeHandling);
           const count = serviceBookings.length;
           return {
             id: appointment.id,
@@ -90,7 +94,7 @@ const Analytics = () => {
         .filter(item => item.value > 0)
         .sort((a, b) => b.value - a.value)
         .slice(0, 5),
-    [appointments, appointmentsById, currentPeriodBookings, metric],
+    [appointments, appointmentsById, currentPeriodBookings, feeHandling, metric],
   );
 
   const maxBreakdown = Math.max(...breakdown.map(item => item.value), 1);
@@ -132,6 +136,18 @@ const Analytics = () => {
             {increaseValue}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">{getComparisonLabel(period)}</p>
+          {metric === 'earnings' && (
+            <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+              <div className="rounded-xl bg-muted px-3 py-2">
+                <p className="text-muted-foreground">Gross bookings</p>
+                <p className="mt-1 font-semibold">{formatCurrency(currentServiceSales)}</p>
+              </div>
+              <div className="rounded-xl bg-muted px-3 py-2">
+                <p className="text-muted-foreground">Fees</p>
+                <p className="mt-1 font-semibold">{formatCurrency(currentFees)}</p>
+              </div>
+            </div>
+          )}
 
           <div className="mt-5 max-h-72 overflow-y-auto pr-1">
             <div className={cn('h-48', period === 'monthly' && 'h-56')}>
@@ -182,8 +198,11 @@ const Analytics = () => {
         </section>
 
         <section className="rounded-2xl border bg-card p-4">
-          <p className="text-sm font-semibold">Business insights</p>
-          <p className="mt-1 text-sm text-muted-foreground">Coming soon...</p>
+          <p className="text-sm font-semibold">Fees this period</p>
+          <p className="mt-2 text-2xl font-extrabold">{formatCurrency(currentFees)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            5% of {formatCurrency(currentServiceSales)} in service sales
+          </p>
         </section>
       </main>
     </div>
@@ -215,6 +234,7 @@ const buildChartRows = (
   bookings: Booking[],
   appointments: Appointment[],
   appointmentsById: Map<string, Appointment>,
+  feeHandling: 'customer' | 'business',
 ): ChartRow[] => {
   if (period === 'daily') {
     const todayBookings = filterBookingsBetween(bookings, startOfDay(new Date()), endOfDay(new Date()));
@@ -224,7 +244,7 @@ const buildChartRows = (
         const minutes = getTimeInMinutes(booking.time);
         return minutes >= range.start && minutes < range.end;
       });
-      return createChartRow(range.label, rangeBookings, appointmentsById);
+      return createChartRow(range.label, rangeBookings, appointmentsById, feeHandling);
     });
   }
 
@@ -241,6 +261,7 @@ const buildChartRows = (
         `Wk ${index + 1}`,
         filterBookingsBetween(bookings, rangeStart, rangeEnd),
         appointmentsById,
+        feeHandling,
       );
     });
   }
@@ -250,7 +271,7 @@ const buildChartRows = (
     return MONTH_LABELS.map((label, monthIndex) => {
       const monthStart = new Date(year, monthIndex, 1);
       const monthEnd = endOfMonth(monthStart);
-      return createChartRow(label, filterBookingsBetween(bookings, monthStart, monthEnd), appointmentsById);
+      return createChartRow(label, filterBookingsBetween(bookings, monthStart, monthEnd), appointmentsById, feeHandling);
     });
   }
 
@@ -264,7 +285,7 @@ const buildChartRows = (
     const year = currentYear + index;
     const yearStart = new Date(year, 0, 1);
     const yearEnd = endOfYear(yearStart);
-    return createChartRow(String(year), filterBookingsBetween(bookings, yearStart, yearEnd), appointmentsById);
+    return createChartRow(String(year), filterBookingsBetween(bookings, yearStart, yearEnd), appointmentsById, feeHandling);
   });
 };
 
@@ -272,9 +293,10 @@ const createChartRow = (
   label: string,
   bookings: Booking[],
   appointmentsById: Map<string, Appointment>,
+  feeHandling: 'customer' | 'business',
 ): ChartRow => ({
   label,
-  earnings: getBookingEarnings(bookings, appointmentsById),
+  earnings: getBookingEarnings(bookings, appointmentsById, feeHandling),
   appointments: bookings.length,
 });
 
@@ -351,14 +373,14 @@ const formatHour = (minutes: number) => {
 const getBookingEarnings = (
   bookings: Booking[],
   appointmentsById: Map<string, Appointment>,
+  feeHandling: 'customer' | 'business',
 ) =>
   bookings
     .filter(booking => EARNING_STATUSES.includes(booking.status))
-    .reduce(
-      (sum, booking) =>
-        sum + Number(booking.payment?.vendorNetAmount ?? appointmentsById.get(booking.appointmentId)?.price ?? 0),
-      0,
-    );
+    .reduce((sum, booking) => {
+      const appointment = appointmentsById.get(booking.appointmentId);
+      return sum + getPaymentSummary(booking, appointment, feeHandling).vendorNet;
+    }, 0);
 
 const getComparisonLabel = (period: Period) => {
   if (period === 'daily') return 'vs yesterday';
@@ -367,7 +389,32 @@ const getComparisonLabel = (period: Period) => {
   return 'vs previous year';
 };
 
-const formatCurrency = (value: number) =>
+const getBookingServiceSales = (
+  bookings: Booking[],
+  appointmentsById: Map<string, Appointment>,
+  feeHandling: 'customer' | 'business',
+) =>
+  bookings
+    .filter(booking => EARNING_STATUSES.includes(booking.status))
+    .reduce((sum, booking) => {
+      const appointment = appointmentsById.get(booking.appointmentId);
+      return sum + getPaymentSummary(booking, appointment, feeHandling).servicePrice;
+    }, 0);
+
+const getBookingServiceCharges = (
+  bookings: Booking[],
+  appointmentsById: Map<string, Appointment>,
+  feeHandling: 'customer' | 'business',
+) =>
+  bookings
+    .filter(booking => EARNING_STATUSES.includes(booking.status))
+    .reduce((sum, booking) => {
+      const appointment = appointmentsById.get(booking.appointmentId);
+      const summary = getPaymentSummary(booking, appointment, feeHandling);
+      return sum + (summary.feePayer === 'business' ? summary.serviceCharge : 0);
+    }, 0);
+
+const legacyFormatCurrency = (value: number) =>
   `₦${Number(value || 0).toLocaleString('en-NG')}`;
 
 export default Analytics;

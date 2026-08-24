@@ -12,6 +12,7 @@ import { ArrowRight, Check, Copy, ExternalLink, Loader2, Share2, Upload } from '
 import { toast } from '@/hooks/use-toast';
 import WelcomeBackNote from '@/components/shared/WelcomeBackNote';
 import type { Business } from '@/types';
+import { calculateServiceCharge } from '@/lib/finance';
 
 const STEP_LABELS = ['Business', 'Location', 'Payments', 'Service', 'Live'];
 const SETUP_DRAFT_KEY = 'akhq:businessSetupDraft';
@@ -558,6 +559,14 @@ const BusinessSetup = () => {
 
   const renderServiceDetails = () => (
     <div className="space-y-4">
+      {(() => {
+        const serviceAmount = Number(servicePrice.replace(/,/g, '')) || 0;
+        const serviceCharge = calculateServiceCharge(serviceAmount);
+        const customerPays = feeHandling === 'customer' ? serviceAmount + serviceCharge : serviceAmount;
+        const youReceive = feeHandling === 'business' ? Math.max(serviceAmount - serviceCharge, 0) : serviceAmount;
+
+        return (
+          <>
       <div>
         <h1 className="text-xl font-bold">What can customers book?</h1>
         <p className="mt-1 text-sm text-muted-foreground">Create your first service. You can add more anytime.</p>
@@ -578,7 +587,7 @@ const BusinessSetup = () => {
         </div>
         <div className="space-y-1.5">
           <RequiredLabel>Price</RequiredLabel>
-          <p className="text-xs text-muted-foreground">This is the amount clients will pay per session</p>
+          <p className="text-xs text-muted-foreground">This is your service price before any service fee.</p>
           <div className="flex h-10 items-center rounded-lg border bg-background px-3">
             <span className="mr-2 text-sm font-semibold">NGN</span>
             <input
@@ -588,6 +597,12 @@ const BusinessSetup = () => {
               inputMode="numeric"
             />
           </div>
+          {serviceAmount > 0 && (
+            <div className="rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
+              <p>Customer pays {formatCurrency(customerPays)}</p>
+              <p>You receive {formatCurrency(youReceive)}</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -598,6 +613,9 @@ const BusinessSetup = () => {
       >
         Next <ArrowRight className="h-4 w-4" />
       </Button>
+          </>
+        );
+      })()}
     </div>
   );
 

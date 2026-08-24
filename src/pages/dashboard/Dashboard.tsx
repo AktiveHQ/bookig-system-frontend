@@ -20,6 +20,7 @@ import { toast } from '@/hooks/use-toast';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Appointment, Booking } from '@/types';
+import { formatCurrency, getPaymentSummary } from '@/lib/finance';
 
 const ACTIVE_BOOKING_STATUSES = ['pending_payment', 'confirmed', 'completed'];
 const EARNING_BOOKING_STATUSES = ['confirmed', 'completed'];
@@ -61,9 +62,12 @@ const Dashboard = () => {
   const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
   const todayBookings = getBookingsOnDate(activeBookings, today);
   const yesterdayBookings = getBookingsOnDate(activeBookings, yesterday);
-  const allEarnings = getBookingEarnings(activeBookings, appointmentsById);
-  const todayEarnings = getBookingEarnings(todayBookings, appointmentsById);
-  const yesterdayEarnings = getBookingEarnings(yesterdayBookings, appointmentsById);
+  const feeHandling = business?.feeHandling || 'customer';
+  const allEarnings = getBookingEarnings(activeBookings, appointmentsById, feeHandling);
+  const todayEarnings = getBookingEarnings(todayBookings, appointmentsById, feeHandling);
+  const todayServiceSales = getBookingServiceSales(todayBookings, appointmentsById, feeHandling);
+  const todayFees = getBookingServiceCharges(todayBookings, appointmentsById, feeHandling);
+  const yesterdayEarnings = getBookingEarnings(yesterdayBookings, appointmentsById, feeHandling);
   const earningsDelta = todayEarnings - yesterdayEarnings;
   const bookingDelta = todayBookings.length - yesterdayBookings.length;
   const workingDayEnded = hasWorkingDayEnded(appointments);
@@ -139,6 +143,17 @@ const Dashboard = () => {
           <p className="text-xs font-semibold uppercase tracking-wide text-white/65">Today's Earnings</p>
           </div>
           <p className="mt-7 text-4xl font-extrabold tracking-tight">{formatCurrency(todayEarnings)}</p>
+          {business?.feeHandling === 'business' ? (
+            <div className="mt-3 space-y-1 text-sm text-white/75">
+              <p>From {formatCurrency(todayServiceSales)} in bookings</p>
+              <p>Fees {formatCurrency(todayFees)}</p>
+            </div>
+          ) : (
+            <div className="mt-3 space-y-1 text-sm text-white/75">
+              <p>Customer fees {formatCurrency(todayFees)}</p>
+              <p>You keep 100% of service earnings</p>
+            </div>
+          )}
           {earningsDeltaLabel && (
             <p className={`mt-4 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
               earningsDeltaLabel.tone === 'positive'
@@ -330,17 +345,41 @@ const getBookingsOnDate = (bookings: Booking[], date: string) =>
 const getBookingEarnings = (
   bookings: Booking[],
   appointmentsById: Map<string, Appointment>,
+  feeHandling: 'customer' | 'business',
 ) =>
   bookings
     .filter(booking => EARNING_BOOKING_STATUSES.includes(booking.status))
-    .reduce(
-      (sum, booking) =>
-        sum + Number(booking.payment?.vendorNetAmount ?? appointmentsById.get(booking.appointmentId)?.price ?? 0),
-      0,
-    );
+    .reduce((sum, booking) => {
+      const appointment = appointmentsById.get(booking.appointmentId);
+      return sum + getPaymentSummary(booking, appointment, feeHandling).vendorNet;
+    }, 0);
 
-const formatCurrency = (value: number) =>
+const legacyFormatCurrency = (value: number) =>
   `₦${Number(value || 0).toLocaleString('en-NG')}`;
+
+const getBookingServiceSales = (
+  bookings: Booking[],
+  appointmentsById: Map<string, Appointment>,
+  feeHandling: 'customer' | 'business',
+) =>
+  bookings
+    .filter(booking => EARNING_BOOKING_STATUSES.includes(booking.status))
+    .reduce((sum, booking) => {
+      const appointment = appointmentsById.get(booking.appointmentId);
+      return sum + getPaymentSummary(booking, appointment, feeHandling).servicePrice;
+    }, 0);
+
+const getBookingServiceCharges = (
+  bookings: Booking[],
+  appointmentsById: Map<string, Appointment>,
+  feeHandling: 'customer' | 'business',
+) =>
+  bookings
+    .filter(booking => EARNING_BOOKING_STATUSES.includes(booking.status))
+    .reduce((sum, booking) => {
+      const appointment = appointmentsById.get(booking.appointmentId);
+      return sum + getPaymentSummary(booking, appointment, feeHandling).serviceCharge;
+    }, 0);
 
 const getUserDisplayName = (displayName?: string | null, email?: string | null) => {
   const trimmedName = displayName?.trim();

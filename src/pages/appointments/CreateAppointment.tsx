@@ -10,6 +10,7 @@ import { useData } from '@/contexts/DataContext';
 import { ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { calculateServiceCharge, formatCurrency } from '@/lib/finance';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DURATION_OPTIONS = [30, 45, 60];
@@ -77,6 +78,13 @@ const CreateAppointment = () => {
 
   const actualDuration = isCustomDuration ? Number(customDuration) || 30 : duration;
   const appointmentPrice = Number(price) || 0;
+  const serviceCharge = calculateServiceCharge(appointmentPrice);
+  const customerPays =
+    business?.feeHandling === 'customer' ? appointmentPrice + serviceCharge : appointmentPrice;
+  const youReceive =
+    business?.feeHandling === 'business'
+      ? Math.max(appointmentPrice - serviceCharge, 0)
+      : appointmentPrice;
 
   if (!business) {
     return (
@@ -173,8 +181,14 @@ const CreateAppointment = () => {
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Price</label>
-          <p className="text-xs text-muted-foreground">This is the amount clients will pay per session</p>
+          <p className="text-xs text-muted-foreground">This is your service price before any service fee.</p>
           <Input value={price} onChange={e => setPrice(e.target.value)} placeholder="e.g. 15000" type="number" className="h-12 rounded-xl" />
+          {appointmentPrice > 0 && (
+            <div className="rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
+              <p>Customer pays {formatCurrency(customerPays)}</p>
+              <p>You receive {formatCurrency(youReceive)}</p>
+            </div>
+          )}
         </div>
         {!showMessage ? (
           <button

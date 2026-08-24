@@ -15,6 +15,7 @@ import {
   BriefcaseBusiness,
   ChevronRight,
   Dumbbell,
+  Info,
   Scissors,
   Sparkles,
 } from 'lucide-react';
@@ -28,6 +29,7 @@ import {
 import { useData } from '@/contexts/DataContext';
 import { cn } from '@/lib/utils';
 import type { Appointment, Booking, Business } from '@/types';
+import { formatCurrency, getPaymentSummary } from '@/lib/finance';
 
 const EARNING_STATUSES = ['confirmed', 'completed'];
 
@@ -91,23 +93,24 @@ const Transactions = () => {
         .filter(booking => EARNING_STATUSES.includes(booking.status))
         .map(booking => {
           const appointment = appointmentsById.get(booking.appointmentId);
+          const paymentSummary = getPaymentSummary(booking, appointment, business?.feeHandling || 'customer');
           const expectedPayoutDate = getExpectedPayoutDate(booking.date);
           return {
             ...booking,
             appointment,
             serviceName: appointment?.name || booking.appointmentName || 'Service',
-            serviceAmount: Number(appointment?.price ?? 0),
-            amount: Number(booking.payment?.vendorNetAmount ?? appointment?.price ?? 0),
-            customerPaidAmount: Number(booking.payment?.amountPaid ?? appointment?.price ?? 0),
-            platformFeeAmount: Number(booking.payment?.platformFeeAmount ?? 0),
-            feePayer: booking.payment?.feePayer ?? 'customer',
+            serviceAmount: paymentSummary.servicePrice,
+            amount: paymentSummary.vendorNet,
+            customerPaidAmount: paymentSummary.customerPaid,
+            platformFeeAmount: paymentSummary.serviceCharge,
+            feePayer: paymentSummary.feePayer,
             expectedPayoutDate,
             settlementStatus:
               expectedPayoutDate > startOfDay(new Date()) ? 'Pending' : 'Settled',
           } satisfies Earning;
         })
         .sort((a, b) => `${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`)),
-    [appointmentsById, bookings],
+    [appointmentsById, bookings, business?.feeHandling],
   );
 
   const pendingEarnings = useMemo(
@@ -282,11 +285,9 @@ const EarningRow = ({ earning, onClick }: { earning: Earning; onClick: () => voi
       </span>
       <span className="shrink-0 text-right">
         <span className="block text-[15px] font-semibold">{formatCurrency(earning.amount)}</span>
-        {earning.platformFeeAmount > 0 && (
+        {earning.feePayer === 'business' && earning.platformFeeAmount > 0 && (
           <span className="mt-0.5 block text-[11px] font-medium text-muted-foreground">
-            {earning.feePayer === 'business'
-              ? `Net after ${formatCurrency(earning.platformFeeAmount)} fee`
-              : 'Fee paid by customer'}
+            from {formatCurrency(earning.serviceAmount)}
           </span>
         )}
         <span
@@ -387,13 +388,28 @@ const EarningDetails = ({
                 ['Payment', 'Successful'],
                 ['Customer paid', formatCurrency(earning.customerPaidAmount)],
                 ['Service amount', formatCurrency(earning.serviceAmount)],
-                ['Service fee 5%', earning.platformFeeAmount > 0 ? `-${formatCurrency(earning.platformFeeAmount)}` : formatCurrency(0)],
+                [
+                  'Service fee 5%',
+                  earning.platformFeeAmount > 0
+                    ? `${earning.feePayer === 'business' ? '-' : ''}${formatCurrency(earning.platformFeeAmount)}`
+                    : formatCurrency(0),
+                ],
                 ['Net earnings', formatCurrency(earning.amount)],
                 ['Payout', earning.settlementStatus === 'Settled' ? 'Settled to bank' : 'Pending settlement'],
                 ['Expected payout', format(earning.expectedPayoutDate, 'EEEE, d MMMM')],
                 ['Payment reference', `AKT-${earning.id}`],
               ]}
             />
+            {earning.feePayer === 'business' && earning.platformFeeAmount > 0 && (
+              <div className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">
+                <p className="flex items-center gap-2 font-semibold text-foreground">
+                  <Info className="h-4 w-4" /> About service fees
+                </p>
+                <p className="mt-1">
+                  Your business is currently set to cover the 5% service fee. This amount is deducted before your earnings are settled.
+                </p>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -409,7 +425,15 @@ const PayoutDetails = ({
   bankAccount: string;
   payout: Payout | null;
   onOpenChange: (open: boolean) => void;
-}) => (
+}) => {
+  const serviceSales = payout?.earnings.reduce((sum, earning) => sum + earning.serviceAmount, 0) ?? 0;
+  const platformFees =
+    payout?.earnings.reduce(
+      (sum, earning) => sum + (earning.feePayer === 'business' ? earning.platformFeeAmount : 0),
+      0,
+    ) ?? 0;
+
+  return (
   <Dialog open={Boolean(payout)} onOpenChange={onOpenChange}>
     <DialogContent className="max-w-md rounded-2xl">
       {payout && (
@@ -437,17 +461,34 @@ const PayoutDetails = ({
                   <div key={earning.id} className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{earning.serviceName}</p>
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {earning.clientName || 'Customer'}
-                      </p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {earning.clientName || 'Customer'}
+                    </p>
+                  </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-semibold">{formatCurrency(earning.amount)}</p>
+                      {earning.feePayer === 'business' && earning.platformFeeAmount > 0 && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          from {formatCurrency(earning.serviceAmount)}
+                        </p>
+                      )}
                     </div>
-                    <p className="shrink-0 text-sm font-semibold">{formatCurrency(earning.amount)}</p>
                   </div>
                 ))}
               </div>
-              <div className="mt-4 flex items-center justify-between border-t pt-4 font-bold">
-                <span>Total</span>
-                <span>{formatCurrency(payout.amount)}</span>
+              <div className="mt-4 space-y-3 border-t pt-4">
+                <div className="flex items-center justify-between gap-4 text-sm">
+                  <span className="text-muted-foreground">Service sales</span>
+                  <span className="font-semibold">{formatCurrency(serviceSales)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4 text-sm">
+                  <span className="text-muted-foreground">Platform fees</span>
+                  <span className="font-semibold">-{formatCurrency(platformFees)}</span>
+                </div>
+                <div className="flex items-center justify-between border-t pt-3 font-bold">
+                  <span>Payout</span>
+                  <span>{formatCurrency(payout.amount)}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -455,7 +496,8 @@ const PayoutDetails = ({
       )}
     </DialogContent>
   </Dialog>
-);
+  );
+};
 
 const DetailRows = ({ rows }: { rows: Array<[string, string]> }) => (
   <div className="space-y-3">
@@ -516,7 +558,7 @@ const getServiceIcon = (name: string) => {
   return BriefcaseBusiness;
 };
 
-const formatCurrency = (value: number) =>
+const legacyFormatCurrency = (value: number) =>
   `\u20A6${Number(value || 0).toLocaleString('en-NG')}`;
 
 const formatTime = (time: string) => {
