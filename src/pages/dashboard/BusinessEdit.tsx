@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import BackButton from '@/components/shared/BackButton';
 import BankSelect from '@/components/shared/BankSelect';
-import WelcomeBackNote from '@/components/shared/WelcomeBackNote';
+import ImageCropDialog from '@/components/shared/ImageCropDialog';
 import { toast } from '@/hooks/use-toast';
 import { ArrowRight, Loader2, Upload } from 'lucide-react';
 import type { Business } from '@/types';
@@ -81,6 +81,8 @@ const BusinessEdit = () => {
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
   const [bookingImage, setBookingImage] = useState('');
+  const [imageToCrop, setImageToCrop] = useState('');
+  const [cropOpen, setCropOpen] = useState(false);
   const [feeHandling, setFeeHandling] = useState<Business['feeHandling']>('customer');
   const [accountHolder, setAccountHolder] = useState('');
   const [bankName, setBankName] = useState('');
@@ -168,7 +170,7 @@ const BusinessEdit = () => {
 
   const handleSave = async () => {
     if (!business) return;
-    if (!name || !email || !country || !city || !accountHolder || !accountNumber) {
+    if (!name || !email || !country || !city || !bookingImage || !accountHolder || !accountNumber) {
       toast({
         title: 'Missing required fields',
         description: 'Please complete all required fields before saving.',
@@ -237,7 +239,8 @@ const BusinessEdit = () => {
     reader.onload = () => {
       const result = reader.result;
       if (typeof result === 'string') {
-        setBookingImage(result);
+        setImageToCrop(result);
+        setCropOpen(true);
       }
     };
     reader.readAsDataURL(file);
@@ -262,7 +265,6 @@ const BusinessEdit = () => {
       <div className="flex items-center gap-3 mb-6">
         <BackButton />
       </div>
-      <WelcomeBackNote />
 
       <div className="space-y-6 flex-1">
         <div>
@@ -327,7 +329,9 @@ const BusinessEdit = () => {
                   <Input value={address} onChange={e => setAddress(e.target.value)} className="h-12 rounded-xl" />
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-sm font-medium">Business Photo or logo</label>
+                  <label className="text-sm font-medium">
+                    Business Photo or logo <span className="text-destructive">*</span>
+                  </label>
                   <div
                     className="border-2 border-dashed rounded-xl min-h-40 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-accent/50 transition-colors p-4"
                     onClick={() => fileInputRef.current?.click()}
@@ -353,17 +357,30 @@ const BusinessEdit = () => {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    This image appears at on your public booking page.
+                    Required. This image appears on your public booking page. Use Adjust photo to crop it to your preference.
                   </p>
                   {bookingImage && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-10 rounded-full mt-2"
-                      onClick={() => setBookingImage('')}
-                    >
-                      Remove image
-                    </Button>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 rounded-full"
+                        onClick={() => {
+                          setImageToCrop(bookingImage);
+                          setCropOpen(true);
+                        }}
+                      >
+                        Adjust photo to fit
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 rounded-full"
+                        onClick={() => setBookingImage('')}
+                      >
+                        Remove image
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -463,6 +480,12 @@ const BusinessEdit = () => {
           </Button>
         </div>
       </div>
+      <ImageCropDialog
+        image={imageToCrop}
+        open={cropOpen}
+        onApply={setBookingImage}
+        onOpenChange={setCropOpen}
+      />
     </div>
   );
 };

@@ -10,7 +10,7 @@ import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowRight, Check, Copy, ExternalLink, Loader2, Share2, Upload } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import WelcomeBackNote from '@/components/shared/WelcomeBackNote';
+import ImageCropDialog from '@/components/shared/ImageCropDialog';
 import type { Business } from '@/types';
 import { calculateServiceCharge } from '@/lib/finance';
 
@@ -117,6 +117,8 @@ const BusinessSetup = () => {
   const [state, setState] = useState('Lagos');
   const [address, setAddress] = useState('');
   const [bookingImage, setBookingImage] = useState('');
+  const [imageToCrop, setImageToCrop] = useState('');
+  const [cropOpen, setCropOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [feeHandling, setFeeHandling] = useState<Business['feeHandling']>('customer');
@@ -330,11 +332,18 @@ const BusinessSetup = () => {
     reader.onload = () => {
       const result = reader.result;
       if (typeof result === 'string') {
-        setBookingImage(result);
+        setImageToCrop(result);
+        setCropOpen(true);
       }
     };
     reader.readAsDataURL(file);
   };
+
+  const saveLaterButton = (
+    <Button type="button" variant="outline" className="h-10 w-full rounded-xl border-[#020c1a] text-[#020c1a]" onClick={saveSetupDraft}>
+      Save and continue later
+    </Button>
+  );
 
   const handleSavePayments = async () => {
     setSaving(true);
@@ -418,7 +427,7 @@ const BusinessSetup = () => {
           <Textarea value={description} onChange={e => setDescription(e.target.value)} className="min-h-[80px] rounded-lg" required />
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">Business photo/logo - optional</label>
+          <RequiredLabel>Business photo/logo</RequiredLabel>
           <div
             className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-3 transition-colors hover:bg-accent/50"
             onClick={() => fileInputRef.current?.click()}
@@ -433,12 +442,26 @@ const BusinessSetup = () => {
             </p>
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
           </div>
+          <p className="text-xs text-muted-foreground">
+            Required. After uploading, adjust the crop so it fits your booking page.
+          </p>
+          {bookingImage && (
+            <Button type="button" variant="outline" className="h-10 rounded-xl" onClick={() => {
+              setImageToCrop(bookingImage);
+              setCropOpen(true);
+            }}>
+              Adjust photo to fit
+            </Button>
+          )}
         </div>
       </div>
 
-      <Button onClick={goNext} className={`w-full gap-2 ${primaryButtonClassName}`} disabled={!name.trim() || !description.trim()}>
-        Continue <ArrowRight className="h-4 w-4" />
-      </Button>
+      <div className="space-y-3">
+        <Button onClick={goNext} className={`w-full gap-2 ${primaryButtonClassName}`} disabled={!name.trim() || !description.trim() || !bookingImage}>
+          Continue <ArrowRight className="h-4 w-4" />
+        </Button>
+        {saveLaterButton}
+      </div>
     </div>
   );
 
@@ -468,9 +491,12 @@ const BusinessSetup = () => {
         </div>
       </div>
 
-      <Button onClick={goNext} className={`w-full gap-2 ${primaryButtonClassName}`} disabled={!state || !address.trim()}>
-        Continue <ArrowRight className="h-4 w-4" />
-      </Button>
+      <div className="space-y-3">
+        <Button onClick={goNext} className={`w-full gap-2 ${primaryButtonClassName}`} disabled={!state || !address.trim()}>
+          Continue <ArrowRight className="h-4 w-4" />
+        </Button>
+        {saveLaterButton}
+      </div>
     </div>
   );
 
@@ -538,22 +564,25 @@ const BusinessSetup = () => {
         </div>
       )}
 
-      <Button
-        onClick={handleSavePayments}
-        className={`w-full gap-2 ${primaryButtonClassName}`}
-        disabled={!bankCode || !accountHolder || accountNumber.length !== 10 || resolvingAccount || saving}
-      >
-        {saving ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Setting up payouts...
-          </>
-        ) : (
-          <>
-            Save & Continue <ArrowRight className="h-4 w-4" />
-          </>
-        )}
-      </Button>
+      <div className="space-y-3">
+        <Button
+          onClick={handleSavePayments}
+          className={`w-full gap-2 ${primaryButtonClassName}`}
+          disabled={!bankCode || !accountHolder || accountNumber.length !== 10 || resolvingAccount || saving}
+        >
+          {saving ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Setting up payouts...
+            </>
+          ) : (
+            <>
+              Save & Continue <ArrowRight className="h-4 w-4" />
+            </>
+          )}
+        </Button>
+        {saveLaterButton}
+      </div>
     </div>
   );
 
@@ -613,6 +642,7 @@ const BusinessSetup = () => {
       >
         Next <ArrowRight className="h-4 w-4" />
       </Button>
+      {saveLaterButton}
           </>
         );
       })()}
@@ -699,17 +729,20 @@ const BusinessSetup = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Button type="button" variant="outline" onClick={() => setServiceStep(0)} className="h-11 rounded-xl border-[#020c1a] text-[#020c1a]">
-          Back
-        </Button>
-        <Button
-          onClick={handleCreateService}
-          className={`gap-2 ${primaryButtonClassName}`}
-          disabled={selectedDays.length === 0}
-        >
-          Create Service <ArrowRight className="h-4 w-4" />
-        </Button>
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <Button type="button" variant="outline" onClick={() => setServiceStep(0)} className="h-11 rounded-xl border-[#020c1a] text-[#020c1a]">
+            Back
+          </Button>
+          <Button
+            onClick={handleCreateService}
+            className={`gap-2 ${primaryButtonClassName}`}
+            disabled={selectedDays.length === 0}
+          >
+            Create Service <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+        {saveLaterButton}
       </div>
     </div>
   );
@@ -778,12 +811,6 @@ const BusinessSetup = () => {
           <div className="mb-5 flex items-center gap-3">
             <BackButton onClick={step > 0 ? goBack : undefined} />
           </div>
-          <WelcomeBackNote />
-          <div className="mb-4 flex justify-end">
-            <Button type="button" variant="outline" className="h-10 rounded-xl border-[#020c1a] text-[#020c1a]" onClick={saveSetupDraft}>
-              Save and continue later
-            </Button>
-          </div>
           <ProgressBar currentStep={step} totalSteps={5} labels={STEP_LABELS} />
           {step === 3 && paymentsReady && (
             <p className="mt-3 text-center text-sm font-semibold text-emerald-700">
@@ -800,6 +827,12 @@ const BusinessSetup = () => {
         {step === 3 && renderServiceStep()}
         {step === 4 && renderLiveStep()}
       </main>
+      <ImageCropDialog
+        image={imageToCrop}
+        open={cropOpen}
+        onApply={setBookingImage}
+        onOpenChange={setCropOpen}
+      />
     </div>
   );
 };

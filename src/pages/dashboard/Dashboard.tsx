@@ -102,17 +102,19 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background px-4 py-5 sm:px-6 lg:px-8">
       <main className="mx-auto w-full max-w-5xl space-y-5">
-        <header className="flex items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
+        <header className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
               {userName.slice(0, 1).toUpperCase()}
             </div>
-            <div className="min-w-0">
-              <h1 className="truncate text-lg font-bold">Hello, {userName}</h1>
-              <p className="truncate text-sm text-muted-foreground">Your business is looking good today.</p>
+            <div className="min-w-0 flex-1">
+              <h1 className="break-words text-lg font-bold leading-tight">Hello, {userName}</h1>
+              <p className="mt-0.5 whitespace-normal break-words text-sm leading-5 text-muted-foreground">
+                Your business is looking good today.
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <button className="relative rounded-full border bg-card p-2.5" aria-label="Notifications">
               <Bell className="h-5 w-5" />
               <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#6B4EFF]" />
