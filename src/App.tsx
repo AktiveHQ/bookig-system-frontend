@@ -20,6 +20,7 @@ const Analytics = lazy(() => import("./pages/dashboard/Analytics"));
 const AppointmentDetail = lazy(() => import("./pages/dashboard/AppointmentDetail"));
 const BookingDetail = lazy(() => import("./pages/dashboard/BookingDetail"));
 const BookingsList = lazy(() => import("./pages/dashboard/BookingsList"));
+const ServicesList = lazy(() => import("./pages/dashboard/ServicesList"));
 const BusinessEdit = lazy(() => import("./pages/dashboard/BusinessEdit"));
 const Account = lazy(() => import("./pages/dashboard/Account"));
 const Transactions = lazy(() => import("./pages/dashboard/Transactions"));
@@ -105,6 +106,7 @@ const App = () => (
                 <Route path="/dashboard/analytics" element={<Analytics />} />
                 <Route path="/dashboard/transactions" element={<Transactions />} />
                 <Route path="/dashboard/bookings" element={<BookingsList />} />
+                <Route path="/dashboard/services" element={<ServicesList />} />
                 <Route path="/dashboard/bookings/:bookingId" element={<BookingDetail />} />
                 <Route path="/dashboard/appointment/:id" element={<AppointmentDetail />} />
                 <Route path="/business/edit" element={<Account />} />

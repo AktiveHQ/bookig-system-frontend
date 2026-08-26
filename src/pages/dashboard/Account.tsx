@@ -95,7 +95,7 @@ const Account = () => {
                 />
               ),
             },
-            { label: 'Services', onClick: () => navigate('/dashboard/bookings') },
+            { label: 'Services', onClick: () => navigate('/dashboard/services') },
             { label: 'Booking page', onClick: copyBookingLink, trailing: <Copy className="h-4 w-4" /> },
           ]}
         />

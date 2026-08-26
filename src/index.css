@@ -42,7 +42,7 @@ All colors MUST be HSL.
     /* Card border (#F1E9E5) */
     --border: 20 30% 92.2%;
     --input: 20 30% 92.2%;
-    --ring: 215 85.7% 5.5%;
+    --ring: 255 100% 65%;
 
     /* Cards: 16px; Buttons: 12px via Tailwind rounded-sm */
     --radius: 1rem;
@@ -95,7 +95,7 @@ All colors MUST be HSL.
 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --ring: 255 100% 65%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -123,4 +123,21 @@ All colors MUST be HSL.
     background: hsl(var(--notice));
     border-color: hsl(var(--notice-border));
   }
+}
+
+::selection {
+  background: rgba(107, 78, 255, 0.24);
+}
+
+input,
+textarea,
+select {
+  accent-color: #6b4eff;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  border-color: #6b4eff;
+  --tw-ring-color: #6b4eff;
 }

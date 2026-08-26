@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { addDays, format, isAfter, isBefore, isSameDay, parseISO } from 'date-fns';
-import { CalendarDays, ChevronRight, ListFilter, Plus } from 'lucide-react';
+import { BriefcaseBusiness, CalendarDays, ListFilter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useData } from '@/contexts/DataContext';
 import type { Appointment, Booking } from '@/types';
@@ -97,10 +97,10 @@ const BookingsList = () => {
           </div>
           <Button
             className="h-10 shrink-0 rounded-full gap-2"
-            onClick={() => navigate('/dashboard/bookings?filter=upcoming&create=appointment')}
+            onClick={() => navigate('/dashboard/services')}
           >
-            <Plus className="h-4 w-4" />
-            Appointment
+            <BriefcaseBusiness className="h-4 w-4" />
+            View Services
           </Button>
         </header>
 
@@ -155,41 +155,6 @@ const BookingsList = () => {
             )}
           </section>
         )}
-
-        <section>
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-bold">Services</h2>
-            <button
-              className="text-sm text-muted-foreground"
-              onClick={() => navigate('/appointments/create')}
-            >
-              Manage what you offer
-            </button>
-          </div>
-
-          <div className="overflow-hidden rounded-2xl border bg-card">
-            {appointments.length === 0 ? (
-              <div className="p-5 text-sm text-muted-foreground">No services yet.</div>
-            ) : (
-              appointments.map(appointment => (
-                <button
-                  key={appointment.id}
-                  className="flex w-full items-center justify-between gap-3 border-b px-4 py-4 text-left last:border-b-0 hover:bg-accent/60"
-                  onClick={() => navigate(`/dashboard/appointment/${appointment.id}`)}
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate font-semibold">{appointment.name}</span>
-                    <span className="mt-0.5 block text-sm text-muted-foreground">{appointment.duration} mins</span>
-                  </span>
-                  <span className="flex shrink-0 items-center gap-2 font-semibold">
-                    {formatCurrency(appointment.price)}
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </span>
-                </button>
-              ))
-            )}
-          </div>
-        </section>
       </main>
     </div>
   );

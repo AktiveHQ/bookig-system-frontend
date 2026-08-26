@@ -21,6 +21,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
 import { cn } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -62,6 +63,11 @@ export const AppLayout = ({ children, showSidebar = true }: AppLayoutProps) => {
     navigate('/');
   };
 
+  const handleNewAppointment = () => {
+    setCreateOpen(false);
+    toast({ title: 'This feature is coming soon!' });
+  };
+
   const createSheet = (
     <Sheet open={createOpen} onOpenChange={setCreateOpen}>
       <SheetContent side="bottom" className="mx-auto max-w-md rounded-t-3xl px-5 pb-8">
@@ -71,7 +77,7 @@ export const AppLayout = ({ children, showSidebar = true }: AppLayoutProps) => {
         <div className="mt-5 overflow-hidden rounded-2xl border bg-card">
           <button
             className="flex w-full items-center gap-4 border-b px-4 py-4 text-left hover:bg-accent/60"
-            onClick={() => go('/dashboard/bookings?filter=upcoming&create=appointment')}
+            onClick={handleNewAppointment}
           >
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
               <CalendarPlus className="h-5 w-5" />
