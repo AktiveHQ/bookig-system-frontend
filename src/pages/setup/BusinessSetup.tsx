@@ -10,7 +10,6 @@ import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowRight, Check, Copy, ExternalLink, Loader2, Share2, Upload } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import ImageCropDialog from '@/components/shared/ImageCropDialog';
 import type { Business } from '@/types';
 import { calculateServiceCharge } from '@/lib/finance';
 
@@ -117,8 +116,6 @@ const BusinessSetup = () => {
   const [state, setState] = useState('Lagos');
   const [address, setAddress] = useState('');
   const [bookingImage, setBookingImage] = useState('');
-  const [imageToCrop, setImageToCrop] = useState('');
-  const [cropOpen, setCropOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [feeHandling, setFeeHandling] = useState<Business['feeHandling']>('customer');
@@ -332,8 +329,7 @@ const BusinessSetup = () => {
     reader.onload = () => {
       const result = reader.result;
       if (typeof result === 'string') {
-        setImageToCrop(result);
-        setCropOpen(true);
+        setBookingImage(result);
       }
     };
     reader.readAsDataURL(file);
@@ -443,16 +439,8 @@ const BusinessSetup = () => {
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
           </div>
           <p className="text-xs text-muted-foreground">
-            Required. After uploading, adjust the crop so it fits your booking page.
+            Required. This image appears on your public booking page.
           </p>
-          {bookingImage && (
-            <Button type="button" variant="outline" className="h-10 rounded-xl" onClick={() => {
-              setImageToCrop(bookingImage);
-              setCropOpen(true);
-            }}>
-              Adjust photo to fit
-            </Button>
-          )}
         </div>
       </div>
 
@@ -827,12 +815,6 @@ const BusinessSetup = () => {
         {step === 3 && renderServiceStep()}
         {step === 4 && renderLiveStep()}
       </main>
-      <ImageCropDialog
-        image={imageToCrop}
-        open={cropOpen}
-        onApply={setBookingImage}
-        onOpenChange={setCropOpen}
-      />
     </div>
   );
 };

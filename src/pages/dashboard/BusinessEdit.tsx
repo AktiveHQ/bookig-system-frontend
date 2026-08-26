@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import BackButton from '@/components/shared/BackButton';
 import BankSelect from '@/components/shared/BankSelect';
-import ImageCropDialog from '@/components/shared/ImageCropDialog';
 import { toast } from '@/hooks/use-toast';
 import { ArrowRight, Loader2, Upload } from 'lucide-react';
 import type { Business } from '@/types';
@@ -81,8 +80,6 @@ const BusinessEdit = () => {
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
   const [bookingImage, setBookingImage] = useState('');
-  const [imageToCrop, setImageToCrop] = useState('');
-  const [cropOpen, setCropOpen] = useState(false);
   const [feeHandling, setFeeHandling] = useState<Business['feeHandling']>('customer');
   const [accountHolder, setAccountHolder] = useState('');
   const [bankName, setBankName] = useState('');
@@ -239,8 +236,7 @@ const BusinessEdit = () => {
     reader.onload = () => {
       const result = reader.result;
       if (typeof result === 'string') {
-        setImageToCrop(result);
-        setCropOpen(true);
+        setBookingImage(result);
       }
     };
     reader.readAsDataURL(file);
@@ -357,30 +353,17 @@ const BusinessEdit = () => {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Required. This image appears on your public booking page. Use Adjust photo to crop it to your preference.
+                    Required. This image appears on your public booking page.
                   </p>
                   {bookingImage && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-10 rounded-full"
-                        onClick={() => {
-                          setImageToCrop(bookingImage);
-                          setCropOpen(true);
-                        }}
-                      >
-                        Adjust photo to fit
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-10 rounded-full"
-                        onClick={() => setBookingImage('')}
-                      >
-                        Remove image
-                      </Button>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 rounded-full mt-2"
+                      onClick={() => setBookingImage('')}
+                    >
+                      Remove image
+                    </Button>
                   )}
                 </div>
               </div>
@@ -480,12 +463,6 @@ const BusinessEdit = () => {
           </Button>
         </div>
       </div>
-      <ImageCropDialog
-        image={imageToCrop}
-        open={cropOpen}
-        onApply={setBookingImage}
-        onOpenChange={setCropOpen}
-      />
     </div>
   );
 };
