@@ -401,6 +401,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       businessDescription: b.businessDescription || b.description,
       contactEmail: b.email,
       country: b.country || null,
+      city: b.city || null,
+      address: b.address || null,
+      contactPhone: b.phone || null,
+      headerImageUrl: b.headerImageUrl || null,
+      bankName: b.bankName || null,
+      bankCode: b.bankCode || null,
+      accountNumber: b.accountNumber || null,
+      accountHolderName: b.accountHolderName || null,
       feePolicy: toFeePolicy(b.feeHandling),
     };
 
@@ -422,10 +430,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       if (hasPersistedBusinessId) {
         console.log('[BusinessUpdate] PATCH /dashboard/businesses/me payload:', updatePayload);
-        await apiFetch('/dashboard/businesses/me', {
+        const updated = await apiFetch('/dashboard/businesses/me', {
           method: 'PATCH',
           body: JSON.stringify(updatePayload),
         });
+        if (updated) {
+          const mapped = toBusiness(updated);
+          setBusinessState(mapped);
+          setHasSetupComplete(Boolean(mapped.id || mapped.slug));
+        }
       } else {
         console.log('[BusinessSetup] POST /dashboard/businesses payload:', createPayload);
         const created = await apiFetch('/dashboard/businesses', {
@@ -435,22 +448,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (created) {
           setBusinessState(prev => ({ ...(prev || b), ...toBusiness(created) }));
+          setHasSetupComplete(Boolean(created.id || created.bookingSlug || created.slug));
         }
-
-        console.log('[BusinessSetup] PATCH /dashboard/businesses/me payload:', updatePayload);
-        await apiFetch('/dashboard/businesses/me', {
-          method: 'PATCH',
-          body: JSON.stringify(updatePayload),
-        });
-      }
-
-      try {
-        const meBusinessRaw = await apiFetch('/dashboard/businesses/me');
-        const mapped = toBusiness(meBusinessRaw);
-        setBusinessState(mapped);
-        setHasSetupComplete(Boolean(mapped.id || mapped.slug));
-      } catch (error) {
-        if (!isNotFoundError(error)) throw error;
       }
       return { ok: true };
     } catch (error) {
@@ -458,20 +457,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (isNotFoundError(error)) {
         try {
           console.log('[BusinessSetup] Retry POST /dashboard/businesses payload:', createPayload);
-          await apiFetch('/dashboard/businesses', {
+          const created = await apiFetch('/dashboard/businesses', {
             method: 'POST',
             body: JSON.stringify(createPayload),
           });
-          console.log('[BusinessSetup] Retry PATCH /dashboard/businesses/me payload:', updatePayload);
-          await apiFetch('/dashboard/businesses/me', {
-            method: 'PATCH',
-            body: JSON.stringify(updatePayload),
-          });
-
-          const meBusinessRaw = await apiFetch('/dashboard/businesses/me');
-          const mapped = toBusiness(meBusinessRaw);
-          setBusinessState(mapped);
-          setHasSetupComplete(Boolean(mapped.id || mapped.slug));
+          if (created) {
+            const mapped = toBusiness(created);
+            setBusinessState(mapped);
+            setHasSetupComplete(Boolean(mapped.id || mapped.slug));
+          }
           return { ok: true };
         } catch (retryError) {
           console.error('Failed to persist business profile (retry)', retryError);

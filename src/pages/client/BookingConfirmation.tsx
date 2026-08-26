@@ -230,7 +230,7 @@ const BookingConfirmation = () => {
 
     setLoading(true);
     try {
-      const bookingResponse = await fetch(`${API_BASE}/public/bookings`, {
+      const checkoutResponse = await fetch(`${API_BASE}/public/bookings/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -243,39 +243,20 @@ const BookingConfirmation = () => {
         }),
       });
 
-      if (!bookingResponse.ok) {
+      if (!checkoutResponse.ok) {
         const message = await getResponseErrorMessage(
-          bookingResponse,
-          'Failed to create booking'
+          checkoutResponse,
+          'Failed to start payment'
         );
         const apiError: ApiError = new Error(message);
-        apiError.status = bookingResponse.status;
+        apiError.status = checkoutResponse.status;
         throw apiError;
       }
 
-      const bookingJson = await bookingResponse.json();
-      const bookingId = bookingJson?.bookingId;
+      const paymentJson = await checkoutResponse.json();
+      const bookingId = paymentJson?.bookingId;
       if (!bookingId) throw new Error('Booking ID missing');
 
-      const paymentResponse = await fetch(
-        `${API_BASE}/public/bookings/${bookingId}/payments/initialize`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-
-      if (!paymentResponse.ok) {
-        const message = await getResponseErrorMessage(
-          paymentResponse,
-          'Failed to initialize payment'
-        );
-        const apiError: ApiError = new Error(message);
-        apiError.status = paymentResponse.status;
-        throw apiError;
-      }
-
-      const paymentJson = await paymentResponse.json();
       const authorizationUrl = paymentJson?.authorizationUrl;
 
       if (!authorizationUrl) {

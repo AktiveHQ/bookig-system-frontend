@@ -3,37 +3,44 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DataProvider } from "@/contexts/DataContext";
 import AppLayout from "@/components/dashboard/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 
-import Welcome from "./pages/auth/Welcome";
-import Login from "./pages/auth/Login";
-import Signup from "./pages/auth/Signup";
-import ForgotPassword from "./pages/auth/ForgotPassword";
-import BusinessSetup from "./pages/setup/BusinessSetup";
-import SetupSuccess from "./pages/setup/SetupSuccess";
-import Dashboard from "./pages/dashboard/Dashboard";
-import Analytics from "./pages/dashboard/Analytics";
-import AppointmentDetail from "./pages/dashboard/AppointmentDetail";
-import BookingDetail from "./pages/dashboard/BookingDetail";
-import BookingsList from "./pages/dashboard/BookingsList";
-import BusinessEdit from "./pages/dashboard/BusinessEdit";
-import Account from "./pages/dashboard/Account";
-import Transactions from "./pages/dashboard/Transactions";
-import CreateAppointment from "./pages/appointments/CreateAppointment";
-import AppointmentCreated from "./pages/appointments/AppointmentCreated";
-import BusinessPage from "./pages/client/BusinessPage";
-import BookingConfirmation from "./pages/client/BookingConfirmation";
-import BookingConfirmed from "./pages/client/BookingConfirmed";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import BusinessReview from "./pages/admin/BusinessReview";
-import AdminLogin from "./pages/admin/AdminLogin";
-import CreateAdminAccount from "./pages/admin/CreateAdminAccount";
-import NotFound from "./pages/NotFound";
+const Welcome = lazy(() => import("./pages/auth/Welcome"));
+const Login = lazy(() => import("./pages/auth/Login"));
+const Signup = lazy(() => import("./pages/auth/Signup"));
+const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
+const BusinessSetup = lazy(() => import("./pages/setup/BusinessSetup"));
+const SetupSuccess = lazy(() => import("./pages/setup/SetupSuccess"));
+const Dashboard = lazy(() => import("./pages/dashboard/Dashboard"));
+const Analytics = lazy(() => import("./pages/dashboard/Analytics"));
+const AppointmentDetail = lazy(() => import("./pages/dashboard/AppointmentDetail"));
+const BookingDetail = lazy(() => import("./pages/dashboard/BookingDetail"));
+const BookingsList = lazy(() => import("./pages/dashboard/BookingsList"));
+const BusinessEdit = lazy(() => import("./pages/dashboard/BusinessEdit"));
+const Account = lazy(() => import("./pages/dashboard/Account"));
+const Transactions = lazy(() => import("./pages/dashboard/Transactions"));
+const CreateAppointment = lazy(() => import("./pages/appointments/CreateAppointment"));
+const AppointmentCreated = lazy(() => import("./pages/appointments/AppointmentCreated"));
+const BusinessPage = lazy(() => import("./pages/client/BusinessPage"));
+const BookingConfirmation = lazy(() => import("./pages/client/BookingConfirmation"));
+const BookingConfirmed = lazy(() => import("./pages/client/BookingConfirmed"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const BusinessReview = lazy(() => import("./pages/admin/BusinessReview"));
+const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
+const CreateAdminAccount = lazy(() => import("./pages/admin/CreateAdminAccount"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
+
+const PageFallback = () => (
+  <div className="min-h-screen flex items-center justify-center px-4">
+    <p className="text-sm text-muted-foreground">Loading...</p>
+  </div>
+);
 
 const ProtectedAppLayout = () => {
   const { user, loading } = useAuth();
@@ -79,6 +86,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <Suspense fallback={<PageFallback />}>
             <Routes>
               {/* Auth */}
               <Route path="/" element={<Welcome />} />
@@ -122,6 +130,7 @@ const App = () => (
 
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </Suspense>
           </BrowserRouter>
         </TooltipProvider>
       </DataProvider>
