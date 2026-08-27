@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import PasswordInput from '@/components/shared/PasswordInput';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { AlarmClock, ArrowRight, BarChart3, Bell, CalendarDays, Check, Loader2, LockKeyhole, MessageCircle, WalletCards } from 'lucide-react';
@@ -165,9 +167,12 @@ const GoogleLogo = () => (
 
 const Welcome = () => {
   const navigate = useNavigate();
-  const { signupWithGoogle, getPostAuthRedirect } = useAuth();
+  const { login, loginWithGoogle, getPostAuthRedirect } = useAuth();
   const [activeSlide, setActiveSlide] = useState(0);
+  const [email, setEmail] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [password, setPassword] = useState('');
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -179,17 +184,51 @@ const Welcome = () => {
 
   const slide = slides[activeSlide];
 
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setLoginLoading(true);
+    try {
+      await login(email, password);
+      navigate(await getPostAuthRedirect());
+    } catch (error: any) {
+      if (error?.code === 'auth/user-not-found') {
+        toast({
+          title: 'Account does not exist',
+          description: 'Create an account to get started.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Login failed',
+          description: error?.message || 'Please try again.',
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
   const handleGoogleContinue = async () => {
     setGoogleLoading(true);
     try {
-      await signupWithGoogle();
+      await loginWithGoogle();
       navigate(await getPostAuthRedirect());
     } catch (error: any) {
-      toast({
-        title: 'Google sign-in failed',
-        description: error?.message || 'Please try again.',
-        variant: 'destructive',
-      });
+      if (error?.code === 'auth/backend-user-not-found') {
+        toast({
+          title: 'Account not registered',
+          description: 'Sign up with Google first, then you can continue here.',
+          variant: 'destructive',
+        });
+        navigate('/signup');
+      } else {
+        toast({
+          title: 'Google sign-in failed',
+          description: error?.message || 'Please try again.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setGoogleLoading(false);
     }
@@ -256,47 +295,78 @@ const Welcome = () => {
 
       <section className="hidden min-h-screen items-center justify-center bg-background px-10 py-12 text-foreground md:flex">
         <div className="w-full max-w-md">
-          <div className="mb-10 text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#6B4EFF]">AktiveHQ</p>
-            <h1 className="mt-3 text-3xl font-black tracking-normal">Welcome back</h1>
-            <p className="mt-2 text-sm text-muted-foreground">Choose how you want to continue.</p>
+          <div className="mb-8">
+            <h1 className="text-3xl font-black tracking-normal">Welcome</h1>
+            <p className="mt-2 text-sm text-muted-foreground">Enter email and password to continue</p>
           </div>
 
-          <div className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Email address</label>
+              <Input
+                type="email"
+                value={email}
+                onChange={event => setEmail(event.target.value)}
+                placeholder="you@email.com"
+                required
+                className="h-12 rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Password</label>
+              <PasswordInput
+                value={password}
+                onChange={event => setPassword(event.target.value)}
+                placeholder="••••••••"
+                required
+                className="h-12 rounded-xl"
+              />
+            </div>
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={() => navigate('/forgot-password')}
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                Forgot password?
+              </button>
+            </div>
             <Button
-              type="button"
+              type="submit"
               className="h-12 w-full rounded-xl border-0 bg-[#020c1a] text-base font-bold hover:bg-[#06162b]"
-              onClick={() => navigate('/login')}
+              disabled={loginLoading || googleLoading}
             >
-              Login
+              {loginLoading ? 'Logging in...' : 'Login'}
               <ArrowRight className="h-4 w-4" />
             </Button>
+          </form>
+
+          <div className="mt-4 space-y-4">
             <Button
               type="button"
               variant="outline"
               className="h-12 w-full rounded-xl border-[#020c1a] bg-white text-base font-bold text-[#020c1a] hover:bg-[#020c1a]/5 hover:text-[#020c1a]"
               onClick={() => navigate('/signup')}
+              disabled={loginLoading || googleLoading}
             >
-              Create account
+              Create an account
+            </Button>
+            <div className="flex items-center gap-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              <span>or</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 w-full rounded-xl border-[#020c1a] bg-white justify-center gap-3 text-base font-bold text-[#020c1a] hover:bg-[#020c1a]/5 hover:text-[#020c1a]"
+              disabled={googleLoading || loginLoading}
+              onClick={handleGoogleContinue}
+            >
+              {googleLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <GoogleLogo />}
+              Continue with Google
             </Button>
           </div>
-
-          <div className="my-8 flex items-center gap-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            <span className="h-px flex-1 bg-border" />
-            <span>or</span>
-            <span className="h-px flex-1 bg-border" />
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="h-12 w-full rounded-xl border-[#020c1a] bg-white justify-center gap-3 text-base font-bold text-[#020c1a] hover:bg-[#020c1a]/5 hover:text-[#020c1a]"
-            disabled={googleLoading}
-            onClick={handleGoogleContinue}
-          >
-            {googleLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <GoogleLogo />}
-            Continue with Google
-          </Button>
         </div>
       </section>
     </main>
