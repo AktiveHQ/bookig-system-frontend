@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { DataProvider } from "@/contexts/DataContext";
+import { DataProvider, useData } from "@/contexts/DataContext";
 import AppLayout from "@/components/dashboard/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -45,11 +45,12 @@ const PageFallback = () => (
 
 const ProtectedAppLayout = () => {
   const { user, loading } = useAuth();
+  const { dashboardLoaded } = useData();
 
-  if (loading) {
+  if (loading || (user && !dashboardLoaded)) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
-        <p className="text-sm text-muted-foreground">Loading...</p>
+        <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
       </div>
     );
   }

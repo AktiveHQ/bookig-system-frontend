@@ -1,0 +1,1 @@
+import{u as s,j as a}from"./index-BO2iQK2l.js";import{A as r}from"./arrow-left-CVSUoxM2.js";const c=({onClick:o})=>{const t=s();return a.jsx("button",{onClick:o||(()=>t(-1)),className:"p-2 -ml-2 rounded-full hover:bg-accent transition-colors","aria-label":"Go back",children:a.jsx(r,{className:"h-5 w-5"})})};export{c as B};

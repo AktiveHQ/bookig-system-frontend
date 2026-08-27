@@ -5,6 +5,8 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 interface DataContextType {
   business: Business | null;
+  dashboardLoaded: boolean;
+  dashboardLoading: boolean;
   setBusiness: (b: Business) => Promise<{ ok: boolean; message?: string }>;
   notifications: Notification[];
   dismissNotification: (id: number) => Promise<void>;
@@ -273,6 +275,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [hasSetupComplete, setHasSetupComplete] = useState<boolean>(false);
   const [businessLinkCreated, setBusinessLinkCreated] = useState<boolean>(false);
+  const [dashboardLoaded, setDashboardLoaded] = useState(false);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
 
   const clearDashboardData = useCallback(() => {
     setBusinessState(null);
@@ -281,11 +285,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setBookings([]);
     setHasSetupComplete(false);
     setBusinessLinkCreated(false);
+    setDashboardLoaded(false);
+    setDashboardLoading(false);
   }, []);
 
   const loadDashboardData = useCallback(async () => {
     if (!auth.currentUser) return;
 
+    setDashboardLoading(true);
     try {
       let mappedBusiness: Business | null = null;
       try {
@@ -296,52 +303,43 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error) {
         if (isNotFoundError(error)) {
           clearDashboardData();
+          setDashboardLoaded(true);
           return;
         }
         throw error;
       }
 
-      const servicesRaw = await apiFetch('/dashboard/services');
+      const [servicesRaw, historyRaw, notifRaw] = await Promise.all([
+        apiFetch('/dashboard/services'),
+        apiFetch(`/dashboard/bookings?${new URLSearchParams({
+          from: getDateOffsetISO(-45),
+          to: getDateOffsetISO(45),
+        }).toString()}`).catch(error => {
+          console.error('Failed to load booking history', error);
+          return null;
+        }),
+        apiFetch('/dashboard/notifications').catch(error => {
+          console.error('Failed to load notifications', error);
+          return null;
+        }),
+      ]);
+
       const serviceList = Array.isArray(servicesRaw) ? servicesRaw : servicesRaw?.items ?? [];
       const mappedAppointments = serviceList.map((s: any) => toAppointment(s, mappedBusiness.id));
       setAppointments(mappedAppointments);
       setBusinessLinkCreated(mappedAppointments.length > 0);
 
-      const today = new Date().toISOString().slice(0, 10);
-      const bookingsByService = await Promise.all(
-        mappedAppointments.map(async apt => {
-          try {
-            const result = await apiFetch(`/dashboard/services/${apt.id}/bookings?date=${today}`);
-            const rows = Array.isArray(result) ? result : result?.items ?? [];
-            return rows.map((b: any) => toBooking(b, apt.id, mappedBusiness.slug, apt.price));
-          } catch {
-            return [] as Booking[];
-          }
-        })
-      );
-      const todayBookings = bookingsByService.flat();
-
-      try {
-        const params = new URLSearchParams({
-          from: getDateOffsetISO(-45),
-          to: getDateOffsetISO(45),
-        });
-        const historyRaw = await apiFetch(`/dashboard/bookings?${params.toString()}`);
+      if (historyRaw) {
         const historyRows = Array.isArray(historyRaw) ? historyRaw : historyRaw?.items ?? [];
         const historyBookings = historyRows.map((b: any) =>
           toBooking(b, String(b?.serviceId ?? b?.appointmentId ?? b?.service?.id ?? ''), mappedBusiness.slug),
         );
-        const merged = new Map<string, Booking>();
-        for (const row of todayBookings) merged.set(row.id, row);
-        for (const row of historyBookings) merged.set(row.id, row);
-        setBookings(Array.from(merged.values()));
-      } catch (error) {
-        console.error('Failed to load booking history', error);
-        setBookings(todayBookings);
+        setBookings(historyBookings);
+      } else {
+        setBookings([]);
       }
 
-      try {
-        const notifRaw = await apiFetch('/dashboard/notifications');
+      if (notifRaw) {
         const notifRows = Array.isArray(notifRaw) ? notifRaw : notifRaw?.items ?? [];
         setNotifications(
           notifRows.map((row: any) => ({
@@ -352,12 +350,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             businessId: row?.businessId ?? null,
           }))
         );
-      } catch (error) {
-        console.error('Failed to load notifications', error);
+      } else {
         setNotifications([]);
       }
+      setDashboardLoaded(true);
     } catch (error) {
       console.error('Failed to load dashboard data', error);
+      setDashboardLoaded(true);
+    } finally {
+      setDashboardLoading(false);
     }
   }, [clearDashboardData]);
 
@@ -698,6 +699,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value = useMemo(
     () => ({
       business,
+      dashboardLoaded,
+      dashboardLoading,
       setBusiness,
       notifications,
       dismissNotification,
@@ -725,6 +728,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       hasSetupComplete,
       businessLinkCreated,
       fetchBookingHistory,
+      dashboardLoaded,
+      dashboardLoading,
     ]
   );
 
