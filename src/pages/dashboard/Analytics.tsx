@@ -880,7 +880,8 @@ const getBookingServiceCharges = (
   }, 0);
 
 const getPercentChange = (current: number, previous: number) => {
-  if (previous <= 0) return current > 0 ? null : null;
+  if (previous <= 0) return current > 0 ? 100 : null;
+  if (current <= 0) return -100;
   return ((current - previous) / previous) * 100;
 };
 
