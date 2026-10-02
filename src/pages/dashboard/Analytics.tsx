@@ -1,21 +1,21 @@
 import { useMemo, useState } from 'react';
 import {
+  addDays,
+  differenceInCalendarDays,
   endOfDay,
   endOfMonth,
   endOfWeek,
-  endOfYear,
+  format,
   isWithinInterval,
   parseISO,
   startOfDay,
   startOfMonth,
   startOfWeek,
-  startOfYear,
   subDays,
   subMonths,
   subWeeks,
-  subYears,
 } from 'date-fns';
-import { ArrowUpRight, ChevronRight, Star } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, ChevronRight, Star } from 'lucide-react';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { useData } from '@/contexts/DataContext';
 import { formatCurrency, getPaymentSummary } from '@/lib/finance';
@@ -25,9 +25,20 @@ import type { Appointment, Booking, Business } from '@/types';
 const EARNING_STATUSES = ['confirmed', 'completed'];
 const ACTIVE_STATUSES = ['pending_payment', 'confirmed', 'completed'];
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const PERIOD_OPTIONS: Array<{ value: Period; label: string }> = [
+  { value: 'day', label: 'Today' },
+  { value: 'week', label: 'This Week' },
+  { value: 'month', label: 'This Month' },
+  { value: 'custom', label: 'Custom' },
+];
+const CUSTOM_PRESET_OPTIONS: Array<{ value: CustomPreset; label: string }> = [
+  { value: 'lastMonth', label: 'Last Month' },
+  { value: 'last3Months', label: 'Last 3 Months' },
+  { value: 'range', label: 'Custom Range' },
+];
 
-type Period = 'day' | 'week' | 'month' | 'year';
+type Period = 'day' | 'week' | 'month' | 'custom';
+type CustomPreset = 'lastMonth' | 'last3Months' | 'range';
 type SectionKey = 'performance' | 'services' | 'activity' | 'insights';
 type ChartRow = { label: string; earnings: number; appointments: number };
 type PeriodWindow = { currentStart: Date; currentEnd: Date; previousStart: Date; previousEnd: Date };
@@ -46,8 +57,13 @@ type ServicePerformance = {
 
 const Analytics = () => {
   const { appointments, bookings, business } = useData();
-  const [period, setPeriod] = useState<Period>('week');
+  const [period, setPeriod] = useState<Period>('month');
+  const [customPreset, setCustomPreset] = useState<CustomPreset>('lastMonth');
   const [expanded, setExpanded] = useState<SectionKey | null>(null);
+  const [customRange, setCustomRange] = useState(() => ({
+    from: format(subDays(new Date(), 29), 'yyyy-MM-dd'),
+    to: format(new Date(), 'yyyy-MM-dd'),
+  }));
   const feeHandling = business?.feeHandling || 'customer';
 
   const appointmentsById = useMemo(
@@ -60,7 +76,7 @@ const Analytics = () => {
     [bookings],
   );
 
-  const window = useMemo(() => getPeriodWindow(period), [period]);
+  const window = useMemo(() => getPeriodWindow(period, customRange, customPreset), [customPreset, customRange, period]);
   const currentBookings = useMemo(
     () => filterBookingsBetween(activeBookings, window.currentStart, window.currentEnd),
     [activeBookings, window],
@@ -124,8 +140,8 @@ const Analytics = () => {
 
   const activity = useMemo(() => buildBookingActivity(currentBookings, previousBookings), [currentBookings, previousBookings]);
   const insights = useMemo(
-    () => buildInsights(currentEarningsBookings, serviceRows, appointmentsById, feeHandling, period),
-    [appointmentsById, currentEarningsBookings, feeHandling, period, serviceRows],
+    () => buildInsights(currentEarningsBookings, serviceRows, appointmentsById, feeHandling, period, customPreset),
+    [appointmentsById, currentEarningsBookings, customPreset, feeHandling, period, serviceRows],
   );
 
   return (
@@ -134,33 +150,72 @@ const Analytics = () => {
         <header className="space-y-4">
           <h1 className="text-2xl font-bold uppercase tracking-wide">Analytics</h1>
           <div className="grid h-11 grid-cols-4 rounded-full border bg-card p-1">
-            {(['day', 'week', 'month', 'year'] as const).map(item => (
+            {PERIOD_OPTIONS.map(item => (
               <button
-                key={item}
+                key={item.value}
                 className={cn(
-                  'rounded-full text-sm font-semibold capitalize transition-colors',
-                  period === item ? 'bg-[#020c1a] text-white shadow-sm' : 'text-muted-foreground',
+                  'rounded-full text-sm font-semibold transition-colors',
+                  period === item.value ? 'bg-[#020c1a] text-white shadow-sm' : 'text-muted-foreground',
                 )}
-                onClick={() => setPeriod(item)}
+                onClick={() => setPeriod(item.value)}
               >
-                {item}
+                {item.label}
               </button>
             ))}
           </div>
+          {period === 'custom' && (
+            <div className="space-y-3 rounded-2xl border bg-card p-4">
+              <div className="grid gap-2 sm:grid-cols-3">
+                {CUSTOM_PRESET_OPTIONS.map(option => (
+                  <button
+                    key={option.value}
+                    className={cn(
+                      'h-10 rounded-xl border px-3 text-sm font-semibold transition-colors',
+                      customPreset === option.value ? 'border-primary bg-primary text-primary-foreground' : 'text-muted-foreground',
+                    )}
+                    onClick={() => setCustomPreset(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              {customPreset === 'range' && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <DateRangeField
+                    label="From"
+                    value={customRange.from}
+                    onChange={from => setCustomRange(range => normalizeCustomRange(from, range.to))}
+                  />
+                  <DateRangeField
+                    label="To"
+                    value={customRange.to}
+                    onChange={to => setCustomRange(range => normalizeCustomRange(range.from, to))}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </header>
 
         <AnalyticsSection
           title="Performance"
           expanded={expanded === 'performance'}
           onToggle={() => setExpanded(expanded === 'performance' ? null : 'performance')}
-          detail={<PerformanceDetail rows={performanceRows} performance={performance} comparison={earningsComparison} period={period} />}
+          detail={
+            <PerformanceDetail
+              rows={performanceRows}
+              performance={performance}
+              comparison={earningsComparison}
+              period={period}
+              customPreset={customPreset}
+            />
+          }
         >
           <p className="text-4xl font-extrabold tracking-tight">
             {performance.bookings > 0 ? formatCurrency(performance.earnings) : <Unavailable />}
           </p>
           <p className="mt-1 text-sm font-medium text-muted-foreground">Your earnings</p>
-          <ComparisonPill value={earningsComparison} label={getComparisonLabel(period)} />
-          <MiniChart rows={performanceRows} dataKey="earnings" className="mt-5" />
+          <ComparisonPill value={earningsComparison} label={getComparisonLabel(period, customPreset)} />
           <div className="mt-5 space-y-2 text-sm">
             <SummaryRow label="Service sales" value={performance.bookings > 0 ? formatCurrency(performance.serviceSales) : null} />
             <SummaryRow label="Fees" value={performance.bookings > 0 ? `-${formatCurrency(performance.fees)}` : null} />
@@ -206,7 +261,7 @@ const Analytics = () => {
           title="Booking Activity"
           expanded={expanded === 'activity'}
           onToggle={() => setExpanded(expanded === 'activity' ? null : 'activity')}
-          detail={<ActivityDetail activity={activity} rows={performanceRows} period={period} />}
+          detail={<ActivityDetail activity={activity} rows={performanceRows} period={period} customPreset={customPreset} />}
         >
           <div className="grid grid-cols-2 gap-4">
             <SummaryMetric label="Busiest Day" value={activity.busiestDay} />
@@ -215,9 +270,8 @@ const Analytics = () => {
           <div className="mt-5">
             <p className="text-3xl font-extrabold">{currentBookings.length || <Unavailable />}</p>
             <p className="text-sm text-muted-foreground">Total appointments</p>
-            <ComparisonPill value={bookingComparison} label={getComparisonLabel(period)} />
+            <ComparisonPill value={bookingComparison} label={getComparisonLabel(period, customPreset)} />
           </div>
-          <MiniChart rows={performanceRows} dataKey="appointments" className="mt-5" />
         </AnalyticsSection>
 
         <AnalyticsSection
@@ -302,11 +356,13 @@ const PerformanceDetail = ({
   performance,
   comparison,
   period,
+  customPreset,
 }: {
   rows: ChartRow[];
   performance: { earnings: number; previousEarnings: number; serviceSales: number; fees: number; bookings: number };
   comparison: number | null;
   period: Period;
+  customPreset: CustomPreset;
 }) => (
   <div className="space-y-5">
     <MiniChart rows={rows} dataKey="earnings" />
@@ -316,7 +372,7 @@ const PerformanceDetail = ({
       <DetailMetric label="Net earnings" value={performance.bookings ? formatCurrency(performance.earnings) : null} />
       <DetailMetric label="Average booking value" value={performance.bookings ? formatCurrency(performance.earnings / performance.bookings) : null} />
       <DetailMetric label="Previous period" value={performance.previousEarnings ? formatCurrency(performance.previousEarnings) : null} />
-      <DetailMetric label="Comparison" value={comparison === null ? null : formatPercent(comparison, getComparisonLabel(period))} />
+      <DetailMetric label="Comparison" value={comparison === null ? null : formatPercent(comparison, getComparisonLabel(period, customPreset))} />
     </div>
     <p className="text-xs text-muted-foreground">Transactions and payout history remain in Finance / Transactions.</p>
   </div>
@@ -349,14 +405,27 @@ const ServicesDetail = ({ services }: { services: ServicePerformance[] }) => (
   </div>
 );
 
-const ActivityDetail = ({ activity, rows, period }: { activity: ReturnType<typeof buildBookingActivity>; rows: ChartRow[]; period: Period }) => (
+const ActivityDetail = ({
+  activity,
+  rows,
+  period,
+  customPreset,
+}: {
+  activity: ReturnType<typeof buildBookingActivity>;
+  rows: ChartRow[];
+  period: Period;
+  customPreset: CustomPreset;
+}) => (
   <div className="space-y-5">
     <MiniChart rows={rows} dataKey="appointments" />
     <div className="grid gap-3 sm:grid-cols-2">
       <DetailMetric label="Busiest day" value={activity.busiestDay} />
       <DetailMetric label="Busiest time" value={activity.busiestTime} />
       <DetailMetric label="Appointments" value={activity.total > 0 ? String(activity.total) : null} />
-      <DetailMetric label="Comparison" value={formatNullablePercent(getPercentChange(activity.total, activity.previousTotal), getComparisonLabel(period))} />
+      <DetailMetric
+        label="Comparison"
+        value={formatNullablePercent(getPercentChange(activity.total, activity.previousTotal), getComparisonLabel(period, customPreset))}
+      />
     </div>
     <div className="space-y-2">
       <p className="text-sm font-semibold">Appointments by day</p>
@@ -399,6 +468,26 @@ const SummaryMetric = ({ label, value }: { label: string; value: string | null }
   </div>
 );
 
+const DateRangeField = ({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) => (
+  <label className="space-y-1.5">
+    <span className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
+    <input
+      type="date"
+      value={value}
+      onChange={event => onChange(event.target.value)}
+      className="h-11 w-full rounded-xl border bg-background px-3 text-sm font-semibold outline-none transition-colors focus:border-primary"
+    />
+  </label>
+);
+
 const SummaryRow = ({ label, value }: { label: string; value: string | null }) => (
   <div className="flex items-center justify-between gap-4">
     <span className="text-muted-foreground">{label}</span>
@@ -416,7 +505,7 @@ const DetailMetric = ({ label, value }: { label: string; value: string | null })
 const ComparisonPill = ({ value, label }: { value: number | null; label: string }) => (
   <p
     className={cn(
-      'mt-3 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
+      'mt-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold',
       value === null
         ? 'bg-muted text-muted-foreground'
         : value >= 0
@@ -424,7 +513,8 @@ const ComparisonPill = ({ value, label }: { value: number | null; label: string 
           : 'bg-red-500/10 text-red-600',
     )}
   >
-    {value === null ? `data not available ${label}` : formatPercent(value, label)}
+    {value !== null && (value >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />)}
+    {value === null ? label : formatPercent(value, label)}
   </p>
 );
 
@@ -436,7 +526,12 @@ const EmptyData = () => (
   </div>
 );
 
-const getPeriodWindow = (period: Period): PeriodWindow => {
+const normalizeCustomRange = (from: string, to: string) => {
+  if (!from || !to) return { from, to };
+  return parseISO(from) <= parseISO(to) ? { from, to } : { from: to, to: from };
+};
+
+const getPeriodWindow = (period: Period, customRange: { from: string; to: string }, customPreset: CustomPreset): PeriodWindow => {
   const now = new Date();
   if (period === 'day') {
     const previous = subDays(now, 1);
@@ -465,12 +560,50 @@ const getPeriodWindow = (period: Period): PeriodWindow => {
       previousEnd: endOfMonth(previous),
     };
   }
-  const previous = subYears(now, 1);
+
+  if (customPreset === 'lastMonth') {
+    const lastMonth = subMonths(now, 1);
+    const previousMonth = subMonths(now, 2);
+    return {
+      currentStart: startOfMonth(lastMonth),
+      currentEnd: endOfMonth(lastMonth),
+      previousStart: startOfMonth(previousMonth),
+      previousEnd: endOfMonth(previousMonth),
+    };
+  }
+
+  if (customPreset === 'last3Months') {
+    const currentStart = startOfDay(subMonths(now, 3));
+    const currentEnd = endOfDay(now);
+    const rangeDays = Math.max(differenceInCalendarDays(currentEnd, currentStart) + 1, 1);
+    const previousEnd = endOfDay(subDays(currentStart, 1));
+    return {
+      currentStart,
+      currentEnd,
+      previousStart: startOfDay(subDays(previousEnd, rangeDays - 1)),
+      previousEnd,
+    };
+  }
+
+  const customStart = startOfDay(parseISO(customRange.from));
+  const customEnd = endOfDay(parseISO(customRange.to));
+  if (Number.isNaN(customStart.getTime()) || Number.isNaN(customEnd.getTime())) {
+    const fallback = subDays(now, 29);
+    return {
+      currentStart: startOfDay(fallback),
+      currentEnd: endOfDay(now),
+      previousStart: startOfDay(subDays(fallback, 30)),
+      previousEnd: endOfDay(subDays(fallback, 1)),
+    };
+  }
+
+  const rangeDays = Math.max(differenceInCalendarDays(customEnd, customStart) + 1, 1);
+  const previousEnd = endOfDay(subDays(customStart, 1));
   return {
-    currentStart: startOfYear(now),
-    currentEnd: endOfYear(now),
-    previousStart: startOfYear(previous),
-    previousEnd: endOfYear(previous),
+    currentStart: customStart,
+    currentEnd: customEnd,
+    previousStart: startOfDay(subDays(previousEnd, rangeDays - 1)),
+    previousEnd,
   };
 };
 
@@ -510,9 +643,29 @@ const buildChartRows = (
     });
   }
 
-  return MONTH_LABELS.map((label, monthIndex) => {
-    const monthBookings = bookings.filter(booking => parseBookingDateTime(booking).getMonth() === monthIndex);
-    return createChartRow(label, monthBookings, appointmentsById, feeHandling);
+  if (bookings.length === 0) {
+    return [];
+  }
+
+  const sortedDates = bookings
+    .map(booking => startOfDay(parseBookingDateTime(booking)))
+    .filter(date => !Number.isNaN(date.getTime()))
+    .sort((a, b) => a.getTime() - b.getTime());
+  const firstDate = sortedDates[0];
+  const lastDate = sortedDates[sortedDates.length - 1];
+  const days = Math.max(differenceInCalendarDays(lastDate, firstDate) + 1, 1);
+  const bucketCount = Math.min(days, 7);
+  const bucketSize = Math.ceil(days / bucketCount);
+
+  return Array.from({ length: bucketCount }, (_, index) => {
+    const start = addDays(firstDate, index * bucketSize);
+    const end = index === bucketCount - 1 ? lastDate : addDays(start, bucketSize - 1);
+    const bucketBookings = bookings.filter(booking => {
+      const date = parseBookingDateTime(booking);
+      return isWithinInterval(date, { start: startOfDay(start), end: endOfDay(end) });
+    });
+    const label = start.toDateString() === end.toDateString() ? format(start, 'd MMM') : `${format(start, 'd MMM')} - ${format(end, 'd MMM')}`;
+    return createChartRow(label, bucketBookings, appointmentsById, feeHandling);
   });
 };
 
@@ -582,6 +735,7 @@ const buildInsights = (
   appointmentsById: Map<string, Appointment>,
   feeHandling: Business['feeHandling'],
   period: Period,
+  customPreset: CustomPreset,
 ) => {
   const insights: Array<{ title: string; body: string }> = [];
   const dayGroups = DAY_NAMES.map((day, index) => {
@@ -597,7 +751,7 @@ const buildInsights = (
   if (strongestDay) {
     insights.push({
       title: `${strongestDay.day} is your strongest day`,
-      body: `You earned ${formatCurrency(strongestDay.earnings)} from ${strongestDay.bookings} bookings ${getPeriodPhrase(period)}.`,
+      body: `You earned ${formatCurrency(strongestDay.earnings)} from ${strongestDay.bookings} bookings ${getPeriodPhrase(period, customPreset)}.`,
     });
   }
 
@@ -605,7 +759,7 @@ const buildInsights = (
   if (topService) {
     insights.push({
       title: `${topService.name} is your top service`,
-      body: `${topService.name} generated ${formatCurrency(topService.earnings)} from ${topService.bookings} bookings ${getPeriodPhrase(period)}.`,
+      body: `${topService.name} generated ${formatCurrency(topService.earnings)} from ${topService.bookings} bookings ${getPeriodPhrase(period, customPreset)}.`,
     });
   }
 
@@ -613,7 +767,7 @@ const buildInsights = (
   if (busiestTime) {
     insights.push({
       title: `${busiestTime.label} gets the most bookings`,
-      body: `${busiestTime.count} appointments were booked during this time range ${getPeriodPhrase(period)}.`,
+      body: `${busiestTime.count} appointments were booked during this time range ${getPeriodPhrase(period, customPreset)}.`,
     });
   }
 
@@ -730,26 +884,27 @@ const getPercentChange = (current: number, previous: number) => {
   return ((current - previous) / previous) * 100;
 };
 
-const formatPercent = (value: number, label: string) => {
-  const direction = value >= 0 ? 'Up' : 'Down';
-  return `${direction} ${Math.abs(Math.round(value))}% ${label}`;
-};
+const formatPercent = (value: number, label: string) => `${Math.abs(Math.round(value))}% ${label}`;
 
 const formatNullablePercent = (value: number | null, label = '') =>
   value === null ? null : formatPercent(value, label).trim();
 
-const getComparisonLabel = (period: Period) => {
-  if (period === 'day') return 'vs yesterday';
-  if (period === 'week') return 'vs last week';
-  if (period === 'month') return 'vs last month';
-  return 'vs last year';
+const getComparisonLabel = (period: Period, customPreset: CustomPreset) => {
+  if (period === 'day') return 'yesterday vs today';
+  if (period === 'week') return 'last week vs this week';
+  if (period === 'month') return 'last month vs this month';
+  if (customPreset === 'lastMonth') return 'previous month vs last month';
+  if (customPreset === 'last3Months') return 'previous 3 months vs last 3 months';
+  return 'previous range vs selected range';
 };
 
-const getPeriodPhrase = (period: Period) => {
+const getPeriodPhrase = (period: Period, customPreset: CustomPreset) => {
   if (period === 'day') return 'today';
   if (period === 'week') return 'this week';
   if (period === 'month') return 'this month';
-  return 'this year';
+  if (customPreset === 'lastMonth') return 'last month';
+  if (customPreset === 'last3Months') return 'in the last 3 months';
+  return 'in the selected range';
 };
 
 export default Analytics;
