@@ -1,0 +1,1 @@
+import{t as c,c as r}from"./format-CeFqqqcT.js";import{a as d}from"./addDays-BOwWRv-M.js";function u(e,n){const t=c(e);if(isNaN(n))return r(e,NaN);if(!n)return t;const o=t.getDate(),s=r(e,t.getTime());s.setMonth(t.getMonth()+n+1,0);const a=s.getDate();return o>=a?s:(t.setFullYear(s.getFullYear(),s.getMonth(),o),t)}function h(e,n){const t=n*7;return d(e,t)}export{u as a,h as b};

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   addDays,
   differenceInCalendarDays,
@@ -15,7 +16,7 @@ import {
   subMonths,
   subWeeks,
 } from 'date-fns';
-import { ArrowDownRight, ArrowUpRight, ChevronRight, Star } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, ChevronDown, ChevronRight, Copy, Share2, Star } from 'lucide-react';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { useData } from '@/contexts/DataContext';
 import { formatCurrency, getPaymentSummary } from '@/lib/finance';
@@ -40,6 +41,7 @@ const CUSTOM_PRESET_OPTIONS: Array<{ value: CustomPreset; label: string }> = [
 type Period = 'day' | 'week' | 'month' | 'custom';
 type CustomPreset = 'lastMonth' | 'last3Months' | 'range';
 type SectionKey = 'performance' | 'services' | 'activity' | 'insights';
+type ServiceMetric = 'earnings' | 'bookings';
 type ChartRow = { label: string; earnings: number; appointments: number };
 type PeriodWindow = { currentStart: Date; currentEnd: Date; previousStart: Date; previousEnd: Date };
 
@@ -56,10 +58,12 @@ type ServicePerformance = {
 };
 
 const Analytics = () => {
+  const navigate = useNavigate();
   const { appointments, bookings, business } = useData();
   const [period, setPeriod] = useState<Period>('month');
   const [customPreset, setCustomPreset] = useState<CustomPreset>('lastMonth');
   const [expanded, setExpanded] = useState<SectionKey | null>(null);
+  const [serviceMetric, setServiceMetric] = useState<ServiceMetric>('earnings');
   const [customRange, setCustomRange] = useState(() => ({
     from: format(subDays(new Date(), 29), 'yyyy-MM-dd'),
     to: format(new Date(), 'yyyy-MM-dd'),
@@ -135,14 +139,28 @@ const Analytics = () => {
       previousEarningsBookings,
     ],
   );
-  const topServices = serviceRows.slice(0, 3);
-  const maxServiceEarnings = Math.max(...topServices.map(service => service.earnings), 1);
+  const displayedServices = useMemo(
+    () => [...serviceRows].sort((a, b) => serviceMetric === 'earnings' ? b.earnings - a.earnings : b.bookings - a.bookings),
+    [serviceMetric, serviceRows],
+  );
+  const topServices = displayedServices.slice(0, 3);
+  const maxServiceValue = Math.max(...topServices.map(service => serviceMetric === 'earnings' ? service.earnings : service.bookings), 1);
 
   const activity = useMemo(() => buildBookingActivity(currentBookings, previousBookings), [currentBookings, previousBookings]);
   const insights = useMemo(
-    () => buildInsights(currentEarningsBookings, serviceRows, appointmentsById, feeHandling, period, customPreset),
-    [appointmentsById, currentEarningsBookings, customPreset, feeHandling, period, serviceRows],
+    () => buildInsights(currentEarningsBookings, serviceRows, appointmentsById, feeHandling, period, customPreset, window),
+    [appointmentsById, currentEarningsBookings, customPreset, feeHandling, period, serviceRows, window],
   );
+  const periodPhrase = getPeriodPhrase(period, customPreset, window);
+  const historyUrl = (serviceId = 'all') => {
+    const params = new URLSearchParams({
+      filter: 'history',
+      from: format(window.currentStart, 'yyyy-MM-dd'),
+      to: format(window.currentEnd, 'yyyy-MM-dd'),
+      serviceId,
+    });
+    return `/dashboard/bookings?${params.toString()}`;
+  };
 
   return (
     <div className="min-h-screen bg-background px-4 py-5 sm:px-6 lg:px-8">
@@ -208,50 +226,66 @@ const Analytics = () => {
               comparison={earningsComparison}
               period={period}
               customPreset={customPreset}
+              window={window}
             />
           }
         >
           <p className="text-4xl font-extrabold tracking-tight">
-            {performance.bookings > 0 ? formatCurrency(performance.earnings) : <Unavailable />}
+            {formatCurrency(performance.earnings)}
           </p>
           <p className="mt-1 text-sm font-medium text-muted-foreground">Your earnings</p>
+          {performance.earnings === 0 && (
+            <p className="mt-2 text-sm text-muted-foreground">You have no earnings {periodPhrase}.</p>
+          )}
           <ComparisonPill value={earningsComparison} label={getComparisonLabel(period, customPreset)} />
           <div className="mt-5 space-y-2 text-sm">
-            <SummaryRow label="Service sales" value={performance.bookings > 0 ? formatCurrency(performance.serviceSales) : null} />
-            <SummaryRow label="Fees" value={performance.bookings > 0 ? `-${formatCurrency(performance.fees)}` : null} />
+            <SummaryRow label="Service sales" value={formatCurrency(performance.serviceSales)} />
+            <SummaryRow label="Fees" value={`-${formatCurrency(performance.fees)}`} />
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm font-semibold">
-            <span>{performance.bookings > 0 ? `${performance.bookings} Bookings` : 'data not available'}</span>
-            <span>{performance.bookings > 0 ? `${formatCurrency(averageBooking)} Avg. Booking` : 'data not available'}</span>
+            <button className="hover:underline" onClick={() => navigate(historyUrl())}>{performance.bookings} Bookings</button>
+            <span>{formatCurrency(averageBooking)} Avg. Booking</span>
           </div>
+          {performance.earnings === 0 && <ShareLinkActions businessSlug={business?.slug} />}
         </AnalyticsSection>
 
         <AnalyticsSection
-          title="Top Services"
+          title={
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span>Top Services</span>
+              <button
+                className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-bold normal-case tracking-normal text-foreground"
+                onClick={() => setServiceMetric(value => value === 'earnings' ? 'bookings' : 'earnings')}
+              >
+                per {serviceMetric === 'earnings' ? 'Earnings' : 'Bookings'}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          }
           expanded={expanded === 'services'}
           onToggle={() => setExpanded(expanded === 'services' ? null : 'services')}
-          detail={<ServicesDetail services={serviceRows} />}
+          detail={<ServicesDetail services={displayedServices} metric={serviceMetric} onOpenService={serviceId => navigate(historyUrl(serviceId))} />}
         >
           {topServices.length === 0 ? (
-            <EmptyData />
+            <EmptyData message={`No services were booked ${periodPhrase}.`} businessSlug={business?.slug} />
           ) : (
             <div className="space-y-5">
               {topServices.map(service => (
-                <div key={service.id}>
+                <button key={service.id} className="w-full text-left" onClick={() => navigate(historyUrl(service.id))}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <p className="truncate font-semibold">{service.name}</p>
                       <p className="mt-0.5 text-sm text-muted-foreground">{service.bookings} bookings</p>
                     </div>
-                    <p className="shrink-0 font-bold">{formatCurrency(service.earnings)}</p>
+                    <p className="shrink-0 font-bold">{serviceMetric === 'earnings' ? formatCurrency(service.earnings) : service.bookings}</p>
                   </div>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full bg-primary"
-                      style={{ width: `${Math.max((service.earnings / maxServiceEarnings) * 100, 8)}%` }}
+                      style={{ width: `${Math.max(((serviceMetric === 'earnings' ? service.earnings : service.bookings) / maxServiceValue) * 100, 8)}%` }}
                     />
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -268,9 +302,10 @@ const Analytics = () => {
             <SummaryMetric label="Busiest Time" value={activity.busiestTime} />
           </div>
           <div className="mt-5">
-            <p className="text-3xl font-extrabold">{currentBookings.length || <Unavailable />}</p>
+            <button className="text-3xl font-extrabold hover:underline" onClick={() => navigate(historyUrl())}>{currentBookings.length}</button>
             <p className="text-sm text-muted-foreground">Total appointments</p>
             <ComparisonPill value={bookingComparison} label={getComparisonLabel(period, customPreset)} />
+            {currentBookings.length === 0 && <p className="mt-2 text-sm text-muted-foreground">No appointments were booked {periodPhrase}.</p>}
           </div>
         </AnalyticsSection>
 
@@ -281,7 +316,7 @@ const Analytics = () => {
           detail={<InsightsDetail insights={insights} />}
         >
           {insights.length === 0 ? (
-            <EmptyData />
+            <EmptyData message={`No bookings or earnings happened ${periodPhrase}.`} businessSlug={business?.slug} />
           ) : (
             <div className="space-y-5">
               {insights.slice(0, 2).map((insight, index) => (
@@ -302,7 +337,7 @@ const AnalyticsSection = ({
   expanded,
   onToggle,
 }: {
-  title: string;
+  title: React.ReactNode;
   children: React.ReactNode;
   detail: React.ReactNode;
   expanded: boolean;
@@ -344,7 +379,7 @@ const MiniChart = ({
         </ResponsiveContainer>
       ) : (
         <div className="flex h-full items-center justify-center rounded-xl bg-muted/60 text-sm text-muted-foreground">
-          data not available
+          0 {dataKey === 'earnings' ? 'earned' : 'appointments'}
         </div>
       )}
     </div>
@@ -357,34 +392,44 @@ const PerformanceDetail = ({
   comparison,
   period,
   customPreset,
+  window,
 }: {
   rows: ChartRow[];
   performance: { earnings: number; previousEarnings: number; serviceSales: number; fees: number; bookings: number };
   comparison: number | null;
   period: Period;
   customPreset: CustomPreset;
+  window: PeriodWindow;
 }) => (
   <div className="space-y-5">
     <MiniChart rows={rows} dataKey="earnings" />
     <div className="grid gap-3 sm:grid-cols-2">
-      <DetailMetric label="Gross service sales" value={performance.bookings ? formatCurrency(performance.serviceSales) : null} />
-      <DetailMetric label="Total fees" value={performance.bookings ? `-${formatCurrency(performance.fees)}` : null} />
-      <DetailMetric label="Net earnings" value={performance.bookings ? formatCurrency(performance.earnings) : null} />
-      <DetailMetric label="Average booking value" value={performance.bookings ? formatCurrency(performance.earnings / performance.bookings) : null} />
-      <DetailMetric label="Previous period" value={performance.previousEarnings ? formatCurrency(performance.previousEarnings) : null} />
-      <DetailMetric label="Comparison" value={comparison === null ? null : formatPercent(comparison, getComparisonLabel(period, customPreset))} />
+      <DetailMetric label="Gross service sales" value={formatCurrency(performance.serviceSales)} />
+      <DetailMetric label="Total fees" value={`-${formatCurrency(performance.fees)}`} />
+      <DetailMetric label="Net earnings" value={formatCurrency(performance.earnings)} />
+      <DetailMetric label="Average booking value" value={formatCurrency(performance.bookings > 0 ? performance.earnings / performance.bookings : 0)} />
+      <DetailMetric label={getPreviousEarningsLabel(period, customPreset, window)} value={formatCurrency(performance.previousEarnings)} />
+      <DetailComparisonMetric label="Comparison" value={comparison} comparisonLabel={getComparisonLabel(period, customPreset)} />
     </div>
     <p className="text-xs text-muted-foreground">Transactions and payout history remain in Finance / Transactions.</p>
   </div>
 );
 
-const ServicesDetail = ({ services }: { services: ServicePerformance[] }) => (
+const ServicesDetail = ({
+  services,
+  metric,
+  onOpenService,
+}: {
+  services: ServicePerformance[];
+  metric: ServiceMetric;
+  onOpenService: (serviceId: string) => void;
+}) => (
   <div className="space-y-4">
     {services.length === 0 ? (
-      <EmptyData />
+      <EmptyData message="No services were booked for this selection." />
     ) : (
       services.map(service => (
-        <div key={service.id} className="border-b pb-4 last:border-b-0 last:pb-0">
+        <button key={service.id} className="w-full border-b pb-4 text-left last:border-b-0 last:pb-0" onClick={() => onOpenService(service.id)}>
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="truncate font-semibold">{service.name}</p>
@@ -392,14 +437,14 @@ const ServicesDetail = ({ services }: { services: ServicePerformance[] }) => (
                 {service.bookings} bookings · {formatCurrency(service.averageBooking)} avg.
               </p>
             </div>
-            <p className="shrink-0 font-bold">{formatCurrency(service.earnings)}</p>
+            <p className="shrink-0 font-bold">{metric === 'earnings' ? formatCurrency(service.earnings) : service.bookings}</p>
           </div>
           <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
             <DetailMetric label="Total share" value={`${Math.round(service.percentOfTotal)}%`} />
             <DetailMetric label="Service sales" value={formatCurrency(service.serviceSales)} />
             <DetailMetric label="Growth" value={formatNullablePercent(getPercentChange(service.earnings, service.previousEarnings))} />
           </div>
-        </div>
+        </button>
       ))
     )}
   </div>
@@ -421,7 +466,7 @@ const ActivityDetail = ({
     <div className="grid gap-3 sm:grid-cols-2">
       <DetailMetric label="Busiest day" value={activity.busiestDay} />
       <DetailMetric label="Busiest time" value={activity.busiestTime} />
-      <DetailMetric label="Appointments" value={activity.total > 0 ? String(activity.total) : null} />
+      <DetailMetric label="Appointments" value={String(activity.total)} />
       <DetailMetric
         label="Comparison"
         value={formatNullablePercent(getPercentChange(activity.total, activity.previousTotal), getComparisonLabel(period, customPreset))}
@@ -429,7 +474,7 @@ const ActivityDetail = ({
     </div>
     <div className="space-y-2">
       <p className="text-sm font-semibold">Appointments by day</p>
-      {activity.byDay.length === 0 ? <EmptyData /> : activity.byDay.map(row => <SummaryRow key={row.label} label={row.label} value={String(row.count)} />)}
+      {activity.byDay.length === 0 ? <EmptyData message="No appointments were booked for this selection." /> : activity.byDay.map(row => <SummaryRow key={row.label} label={row.label} value={String(row.count)} />)}
     </div>
   </div>
 );
@@ -437,7 +482,7 @@ const ActivityDetail = ({
 const InsightsDetail = ({ insights }: { insights: Array<{ title: string; body: string }> }) => (
   <div className="space-y-5">
     {insights.length === 0 ? (
-      <EmptyData />
+      <EmptyData message="No bookings or earnings happened for this selection." />
     ) : (
       insights.map((insight, index) => (
         <InsightItem key={`${insight.title}-${index}`} icon={index === 1 ? 'star' : 'trend'} title={insight.title} body={insight.body} />
@@ -464,7 +509,7 @@ const InsightItem = ({ icon, title, body }: { icon: 'trend' | 'star'; title: str
 const SummaryMetric = ({ label, value }: { label: string; value: string | null }) => (
   <div>
     <p className="text-sm font-semibold text-muted-foreground">{label}</p>
-    <p className="mt-1 text-lg font-extrabold">{value || <Unavailable />}</p>
+    <p className="mt-1 text-lg font-extrabold">{value || 'None'}</p>
   </div>
 );
 
@@ -491,14 +536,21 @@ const DateRangeField = ({
 const SummaryRow = ({ label, value }: { label: string; value: string | null }) => (
   <div className="flex items-center justify-between gap-4">
     <span className="text-muted-foreground">{label}</span>
-    <span className="font-semibold">{value || <Unavailable />}</span>
+    <span className="font-semibold">{value || '0'}</span>
   </div>
 );
 
 const DetailMetric = ({ label, value }: { label: string; value: string | null }) => (
   <div className="rounded-xl bg-muted/70 p-3">
     <p className="text-xs font-medium text-muted-foreground">{label}</p>
-    <p className="mt-1 font-bold">{value || <Unavailable />}</p>
+    <p className="mt-1 font-bold">{value || '0'}</p>
+  </div>
+);
+
+const DetailComparisonMetric = ({ label, value, comparisonLabel }: { label: string; value: number | null; comparisonLabel: string }) => (
+  <div className="rounded-xl bg-muted/70 p-3">
+    <p className="text-xs font-medium text-muted-foreground">{label}</p>
+    <ComparisonPill value={value} label={comparisonLabel} />
   </div>
 );
 
@@ -518,13 +570,42 @@ const ComparisonPill = ({ value, label }: { value: number | null; label: string 
   </p>
 );
 
-const Unavailable = () => <span className="text-sm font-medium text-muted-foreground">data not available</span>;
-
-const EmptyData = () => (
+const EmptyData = ({ message, businessSlug }: { message: string; businessSlug?: string }) => (
   <div className="rounded-xl border border-dashed bg-muted/40 p-4 text-sm text-muted-foreground">
-    data not available
+    {message}
+    {businessSlug && <ShareLinkActions businessSlug={businessSlug} compact />}
   </div>
 );
+
+const ShareLinkActions = ({ businessSlug, compact = false }: { businessSlug?: string; compact?: boolean }) => {
+  const bookingUrl = businessSlug && typeof window !== 'undefined' ? `${window.location.origin}/booking/${businessSlug}` : '';
+  const copyLink = async () => {
+    if (!bookingUrl) return;
+    await navigator.clipboard?.writeText(bookingUrl);
+  };
+  const shareLink = async () => {
+    if (!bookingUrl) return;
+    if (navigator.share) {
+      await navigator.share({ title: 'Book a service', url: bookingUrl });
+      return;
+    }
+    await copyLink();
+  };
+
+  if (!businessSlug) return null;
+
+  return (
+    <div className={cn('flex items-center gap-2', compact ? 'mt-3' : 'mt-3')}>
+      <span className="text-sm text-muted-foreground">Share your link</span>
+      <button className="inline-flex h-8 w-8 items-center justify-center rounded-full border bg-card text-foreground" onClick={copyLink} aria-label="Copy booking link">
+        <Copy className="h-4 w-4" />
+      </button>
+      <button className="inline-flex h-8 w-8 items-center justify-center rounded-full border bg-card text-foreground" onClick={shareLink} aria-label="Share booking link">
+        <Share2 className="h-4 w-4" />
+      </button>
+    </div>
+  );
+};
 
 const normalizeCustomRange = (from: string, to: string) => {
   if (!from || !to) return { from, to };
@@ -736,8 +817,10 @@ const buildInsights = (
   feeHandling: Business['feeHandling'],
   period: Period,
   customPreset: CustomPreset,
+  window: PeriodWindow,
 ) => {
   const insights: Array<{ title: string; body: string }> = [];
+  const periodPhrase = getPeriodPhrase(period, customPreset, window);
   const dayGroups = DAY_NAMES.map((day, index) => {
     const rows = bookings.filter(booking => parseBookingDateTime(booking).getDay() === index);
     return {
@@ -748,10 +831,10 @@ const buildInsights = (
   }).filter(group => group.bookings > 0);
 
   const strongestDay = dayGroups.sort((a, b) => b.earnings - a.earnings)[0];
-  if (strongestDay) {
+  if (strongestDay && period !== 'day') {
     insights.push({
       title: `${strongestDay.day} is your strongest day`,
-      body: `You earned ${formatCurrency(strongestDay.earnings)} from ${strongestDay.bookings} bookings ${getPeriodPhrase(period, customPreset)}.`,
+      body: `You earned ${formatCurrency(strongestDay.earnings)} from ${strongestDay.bookings} bookings ${periodPhrase}.`,
     });
   }
 
@@ -759,7 +842,7 @@ const buildInsights = (
   if (topService) {
     insights.push({
       title: `${topService.name} is your top service`,
-      body: `${topService.name} generated ${formatCurrency(topService.earnings)} from ${topService.bookings} bookings ${getPeriodPhrase(period, customPreset)}.`,
+      body: `${topService.name} generated ${formatCurrency(topService.earnings)} from ${topService.bookings} bookings ${periodPhrase}.`,
     });
   }
 
@@ -767,18 +850,7 @@ const buildInsights = (
   if (busiestTime) {
     insights.push({
       title: `${busiestTime.label} gets the most bookings`,
-      body: `${busiestTime.count} appointments were booked during this time range ${getPeriodPhrase(period, customPreset)}.`,
-    });
-  }
-
-  const growingService = serviceRows
-    .map(service => ({ ...service, growth: service.earnings - service.previousEarnings }))
-    .filter(service => service.growth > 0)
-    .sort((a, b) => b.growth - a.growth)[0];
-  if (growingService) {
-    insights.push({
-      title: `${growingService.name} is gaining momentum`,
-      body: `It earned ${formatCurrency(growingService.growth)} more than the previous period.`,
+      body: `${busiestTime.count} appointments were booked during this time range ${periodPhrase}.`,
     });
   }
 
@@ -894,18 +966,28 @@ const getComparisonLabel = (period: Period, customPreset: CustomPreset) => {
   if (period === 'day') return 'yesterday vs today';
   if (period === 'week') return 'last week vs this week';
   if (period === 'month') return 'last month vs this month';
-  if (customPreset === 'lastMonth') return 'previous month vs last month';
-  if (customPreset === 'last3Months') return 'previous 3 months vs last 3 months';
-  return 'previous range vs selected range';
+  if (customPreset === 'lastMonth') return 'two months ago vs last month';
+  if (customPreset === 'last3Months') return 'earlier 3 months vs last 3 months';
+  return 'earlier dates vs selected dates';
 };
 
-const getPeriodPhrase = (period: Period, customPreset: CustomPreset) => {
+const getPeriodPhrase = (period: Period, customPreset: CustomPreset, window?: PeriodWindow) => {
   if (period === 'day') return 'today';
   if (period === 'week') return 'this week';
   if (period === 'month') return 'this month';
   if (customPreset === 'lastMonth') return 'last month';
   if (customPreset === 'last3Months') return 'in the last 3 months';
-  return 'in the selected range';
+  if (window) return `from ${format(window.currentStart, 'MMM d')} to ${format(window.currentEnd, 'MMM d')}`;
+  return 'in the custom dates';
+};
+
+const getPreviousEarningsLabel = (period: Period, customPreset: CustomPreset, window: PeriodWindow) => {
+  if (period === 'day') return 'Yesterday Earnings';
+  if (period === 'week') return 'Last Week Earnings';
+  if (period === 'month') return 'Last Month Earnings';
+  if (customPreset === 'lastMonth') return 'Two Months Ago Earnings';
+  if (customPreset === 'last3Months') return 'Earlier 3 Months Earnings';
+  return `${format(window.previousStart, 'MMM d')} - ${format(window.previousEnd, 'MMM d')} Earnings`;
 };
 
 export default Analytics;
